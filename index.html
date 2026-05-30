@@ -410,8 +410,8 @@ const Dich=(function(){
       ctx.fillStyle=C.low;ctx.fillText('CONTROLS',PAD.l+8,PAD.t+pH-7);}}
   function thline(T){ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.setLineDash([6,4]);
     ctx.beginPath();ctx.moveTo(PAD.l,sy(T));ctx.lineTo(PAD.l+pW,sy(T));ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle=C.ink;ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='right';
-    ctx.fillText('Diagnosis threshold',PAD.l+pW-4,sy(T)-5);}
+    ctx.fillStyle=C.ink;ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='left';
+    ctx.fillText('Diagnosis threshold', PAD.l + 4, sy(T) - 5);;}
   function arrow(T,focus,tailX,headX,rgb){
     const yc=focus==='case'?(PAD.t+sy(T))/2:(sy(T)+PAD.t+pH)/2;
     const dir=headX>=tailX?1:-1;
