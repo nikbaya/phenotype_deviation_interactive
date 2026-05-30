@@ -1,6 +1,12 @@
 # Phenotype Deviation: Interactive Graphic Abstract
 
-> **Paper Reference:** *Individuals who deviate from polygenic expectation are enriched for damaging variants in genes linked to rare disease. (Baya et al. 2026)*
+> **Paper Reference:** *Individuals who deviate from polygenic expectation are enriched for damaging variants in genes linked to rare disease.* (Baya et al. 2026)
+
+<p align="center">
+  <a href="https://nikbaya.github.io/phenotype_deviation_interactive">
+    <img src="https://img.shields.io/badge/View_Interactive_Graphic-2EA043?style=for-the-badge" alt="View Interactive Graphic">
+  </a>
+</p>
 
 <p align="center">
   <img width="100%" max-width="800px" alt="Phenotype Deviation Graphic Abstract" src="https://github.com/user-attachments/assets/e750dd99-1b3d-42ed-ad67-c36a49eecd7d" />
