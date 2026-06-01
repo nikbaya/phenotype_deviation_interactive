@@ -44,12 +44,12 @@ d.text((PADX*SS, (top_rule_y+22)*SS), "INTERACTIVE · THE MISALIGNMENT MODEL",
        font=fk, fill=RULE)
 
 # headline (wrapped), left column ~ 620px wide
-fh = font(F_BLACK, 52)
-headline = ["When your genes", "and your reality", "disagree"]
-y = (top_rule_y + 64) * SS
+fh = font(F_BLACK, 44)
+headline = ["Why do some", "individuals defy their", "polygenic score?"]
+y = (top_rule_y + 60) * SS
 for line in headline:
     d.text((PADX*SS, y), line, font=fh, fill=INK)
-    y += int(60 * SS)
+    y += int(52 * SS)
 
 # standfirst
 fs = font(F_SERIF, 21)
