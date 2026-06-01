@@ -21,7 +21,7 @@
   .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
 
   /* ---- intro / outro ---- */
-  .intro{padding:64px 28px 40px;max-width:1080px;margin:0 auto}
+  .intro{padding:52px 28px 16px;max-width:1080px;margin:0 auto}
   .masthead{border-top:5px solid var(--rule);padding-top:14px}
   .kicker{font-family:var(--sans);font-weight:700;letter-spacing:.08em;
     text-transform:uppercase;font-size:12px;color:var(--rule)}
@@ -29,7 +29,7 @@
     line-height:1.0;margin:.18em 0 .14em;letter-spacing:-.015em}
   .standfirst{font-size:clamp(17px,2.1vw,20px);color:var(--muted);max-width:60ch;line-height:1.5}
   .scrollcue{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--muted);margin-top:40px;display:flex;align-items:center;gap:8px}
+    text-transform:uppercase;color:var(--muted);margin-top:24px;display:flex;align-items:center;gap:8px}
   .scrollcue:after{display:none}
   .scrollcue{animation:cuepulse 2.4s ease-in-out infinite}
   .scrollarrow{color:var(--muted);animation:tug 1.7s ease-in-out infinite}
@@ -118,6 +118,19 @@
   .outro p{font-size:clamp(18px,2.2vw,24px);line-height:1.45;max-width:34ch;font-weight:600}
   .links{font-family:var(--sans);font-weight:700;font-size:13px;margin-top:26px;display:flex;gap:22px;flex-wrap:wrap}
   .links a{color:var(--ink);text-decoration:none;border-bottom:2px solid var(--rule);padding-bottom:2px}
+  .cite{margin-top:22px;max-width:64ch}
+  .cite-head{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .outro .cite-body{font-size:13.5px;line-height:1.5;color:var(--ink);font-weight:400;
+    max-width:64ch;margin:0}
+  .outro .cite-body a{color:var(--ink);text-decoration:underline}
+
+  @media(min-width:821px){
+    /* pull the plot + first card up close to the header, trimming the empty lead-in */
+    .graphic{justify-content:flex-start;padding-top:clamp(10px,4vh,56px)}
+    .steps{padding-top:0}
+    .scrolly .step[data-step="0"]{min-height:62vh}
+  }
 
   @media(max-width:820px){
     .scrolly{grid-template-columns:1fr;gap:0}
@@ -200,7 +213,7 @@
     <div class="step" data-step="0"><div class="card"><span class="stepkick">The population</span>Each dot is a person. We have lined everyone up by their <b>polygenic score</b> — the prediction baked into common DNA — against the trait they actually have.</div></div>
     <div class="step" data-step="1"><div class="card"><span class="stepkick">Aligned</span>For most people the forecast holds. Observed trait tracks expected trait, hugging the diagonal. We call them <b>aligned</b>.</div></div>
     <div class="step" data-step="2"><div class="card"><span class="stepkick">Misaligned</span>But look at the edges. Some sit far <span style="color:var(--high)">above</span> or <span style="color:var(--low)">below</span> the line — observing much more, or much less, of the trait than their genes predicted.</div></div>
-    <div class="step" data-step="3"><div class="card"><span class="stepkick">The cause</span>What pulls them out there? Often the <b>burden of rare, damaging variants in a single gene</b> — counted together, not one at a time. The gold-ringed people carry such variants; watch them flood a tail, and the enrichment odds climb.</div></div>
+    <div class="step" data-step="3"><div class="card"><span class="stepkick">The cause</span>What pulls them out there? Sometimes the <b>burden of rare, damaging variants in a single gene</b> — counted together, not one at a time. The gold-ringed people harbour such variants; watch them flood a tail, and the enrichment odds climb.</div></div>
     <div class="step" data-step="4"><div class="card"><span class="stepkick">Your turn</span>The controls are live — explore how rare-variant burden reshapes the tails.</div></div>
   </div>
 </section>
@@ -259,10 +272,11 @@
 <div class="outro"><div class="bar">
   <p>The gap between prediction and reality is where rare, large-effect variants hide. Find those people — and you have a way to find those genes.</p>
   <div class="links">
-    <a href="#">Read the preprint</a>
-    <a href="#">Code</a>
-    <a href="#">Data</a>
-    <a href="#">Cite</a>
+    <a href="https://www.medrxiv.org/content/10.64898/2025.12.30.25343229v1" target="_blank" rel="noopener">Read the preprint</a>
+  </div>
+  <div class="cite">
+    <div class="cite-head">How to cite</div>
+    <p class="cite-body">Baya NA, Lassen FH, Hill B, Venkatesh SS, Currant H, Lindgren CM, Palmer DS. <i>Individuals whose phenotype deviates from genetic expectation defined by common variation are enriched for rare damaging variants in genes that cause rare disease.</i> medRxiv 2025.12.30.25343229; doi: <a href="https://doi.org/10.64898/2025.12.30.25343229" target="_blank" rel="noopener">https://doi.org/10.64898/2025.12.30.25343229</a></p>
   </div>
 </div></div>
 
@@ -270,7 +284,7 @@
 (function(){
 "use strict";
 const N=12000;
-const C={ink:'#16140f',grey:'#b8b4aa',gsoft:'#e6e3da',high:'#c6362f',low:'#2f6f9e',gold:'#d39b1f',muted:'#6e6a60',rule:'#e3120b'};
+const C={ink:'#16140f',grey:'#b8b4aa',gsoft:'#e6e3da',high:'#c6362f',low:'#2f6f9e',gold:'#d39b1f',muted:'#6e6a60',rule:'#e3120b',paperc:'#fbfaf6'};
 // fixed seed → identical population every reload (mulberry32)
 let _seed=0x00bada55;
 function rng(){_seed=_seed+0x6d2b79f5|0;let t=Math.imul(_seed^_seed>>>15,1|_seed);
@@ -325,10 +339,20 @@ const Cont=(function(){
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
   function resize(){const d=fitCanvas(cv,ctx,640/440,(sb&&window.innerWidth<=820)?0.30:0);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
-  let beta=0,freq=0,showTails=false,showResult=false,sb=false;
+  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null;
+  const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
   function frame(){ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='rgba(184,180,170,.22)';ctx.beginPath();
-    ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();
+    ctx.fillStyle='rgba(184,180,170,.22)';ctx.fill();
+    if(pulse==='aligned'){ctx.save();
+      ctx.beginPath();ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();ctx.clip();
+      if(reduceMotion){ctx.fillStyle='rgba(205,203,196,.5)';ctx.fillRect(0,0,W,H);}
+      else{const w=0.18,t=(performance.now()/2600)%1,p=w+(1-2*w)*(0.5-0.5*Math.cos(2*Math.PI*t)); // sheen sweeps along the diagonal and back, eased (no jump at loop)
+        const lg=ctx.createLinearGradient(sx(-XR),sy(-XR),sx(XR),sy(XR));
+        lg.addColorStop(p-w,'rgba(205,203,196,0)');lg.addColorStop(p,'rgba(205,203,196,.85)');lg.addColorStop(p+w,'rgba(205,203,196,0)');
+        ctx.fillStyle=lg;ctx.fillRect(0,0,W,H);}
+      ctx.restore();}
     ctx.strokeStyle=C.grey;ctx.lineWidth=1.25;ctx.setLineDash([5,4]);
     ctx.beginPath();ctx.moveTo(sx(-XR),sy(-XR));ctx.lineTo(sx(XR),sy(XR));ctx.stroke();ctx.setLineDash([]);
     ctx.strokeStyle=C.ink;ctx.lineWidth=1.4;ctx.beginPath();
@@ -340,12 +364,33 @@ const Cont=(function(){
       ctx.fillStyle=C.high;ctx.fillText('HIGHER than expected',PAD.l+8,PAD.t+13);
       ctx.fillStyle=C.low;ctx.fillText('LOWER than expected',PAD.l+8,PAD.t+pH-7);}}
   const col=r=>r>2?C.high:r<-2?C.low:Math.abs(r)<1?'rgba(120,116,106,.5)':'rgba(120,116,106,.2)';
+  // soft glow rasterised on an offscreen layer with 'lighten' so overlapping halos take the
+  // max rather than stacking to full intensity, then composited once at low opacity
+  let glowCv=null,glowCtx=null;
+  function drawGlow(pts){if(!pts.length)return;
+    if(!glowCv){glowCv=document.createElement('canvas');glowCtx=glowCv.getContext('2d');}
+    if(glowCv.width!==cv.width||glowCv.height!==cv.height){glowCv.width=cv.width;glowCv.height=cv.height;}
+    const dpr=W?cv.width/W:1;glowCtx.setTransform(dpr,0,0,dpr,0,0);
+    glowCtx.clearRect(0,0,W,H);glowCtx.globalCompositeOperation='lighten';
+    const now=performance.now();
+    for(let k=0;k<pts.length;k+=3){const px=pts[k],py=pts[k+1],rgb=pts[k+2]?'198,54,47':'47,111,158';
+      const loc=reduceMotion?0.7:(0.5-0.5*Math.cos(now/420-px*0.020-py*0.012)); // wave sweeps across the tail
+      const rad=2.2+loc*3.2;
+      const g=glowCtx.createRadialGradient(px,py,0,px,py,rad);
+      g.addColorStop(0,'rgba('+rgb+','+(0.35+loc*0.5).toFixed(3)+')');g.addColorStop(1,'rgba('+rgb+',0)');
+      glowCtx.fillStyle=g;glowCtx.beginPath();glowCtx.arc(px,py,rad,0,6.2832);glowCtx.fill();}
+    ctx.save();ctx.globalAlpha=0.6;ctx.drawImage(glowCv,0,0,W,H);ctx.restore();}
   function compute(){const target=beta<0?'low':'high';let a=0,b=0,c=0,d=0;const obs=[];frame();
     ctx.save();ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
+    const glowPts=[];
     for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq,r=isObs?resid[i]+beta:resid[i],y=pgs[i]+r;
       const inTail=target==='low'?r<-2:r>2,al=Math.abs(r)<1;
       if(isObs){if(inTail)a++;else if(al)b++;obs.push([i,r,y]);}
-      else{if(inTail)c++;else if(al)d++;ctx.fillStyle=col(r);ctx.beginPath();ctx.arc(sx(pgs[i]),sy(y),1.6,0,6.2832);ctx.fill();}}
+      else{if(inTail)c++;else if(al)d++;const px=sx(pgs[i]),py=sy(y);
+        if(pulse==='misaligned'&&(r>2||r<-2)){glowPts.push(px,py,r>2?1:0);
+          ctx.fillStyle=r>2?C.high:C.low;ctx.beginPath();ctx.arc(px,py,2,0,6.2832);ctx.fill();}
+        else{ctx.fillStyle=col(r);ctx.beginPath();ctx.arc(px,py,1.6,0,6.2832);ctx.fill();}}}
+    drawGlow(glowPts);
     for(const[i,r,y]of obs){const baseY=pgs[i]+resid[i];
       if(beta!==0){ctx.strokeStyle='rgba(211,155,31,.5)';ctx.lineWidth=1.1;
         ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseY));ctx.lineTo(sx(pgs[i]),sy(y));ctx.stroke();}
@@ -365,6 +410,11 @@ const Cont=(function(){
       document.getElementById('orciC').textContent='90% CI '+fmt(lo)+'–'+fmt(hi)+(a===0?' · none in tail yet':'');}
     drawForest('forestC',or,lo,hi);
     document.getElementById('resultC').classList.toggle('show',showResult);}
+  let pulseRAF=null;
+  function pulseTick(){if(!pulse){pulseRAF=null;return;}compute();pulseRAF=requestAnimationFrame(pulseTick);}
+  function setPulse(p){pulse=p;
+    if(p&&!reduceMotion){if(!pulseRAF)pulseRAF=requestAnimationFrame(pulseTick);}
+    else{if(pulseRAF){cancelAnimationFrame(pulseRAF);pulseRAF=null;}compute();}}
   const bE=document.getElementById('betaC'),fE=document.getElementById('freqC');
   function labels(){const bv=+bE.value;document.getElementById('betavalC').textContent=(bv>=0?'+':'')+bv.toFixed(1)+' SD';
     document.getElementById('freqvalC').textContent=(+fE.value).toFixed(2)+'%';}
@@ -383,6 +433,7 @@ const Cont=(function(){
     else if(i===2)set({beta:0,freq:0,showTails:true,showResult:false});
     else if(i===3)set({beta:1.6,freq:0.6,showTails:true,showResult:true});
     else if(i===4){live.classList.add('live');showTails=true;showResult=true;compute();}
+    setPulse(i===1?'aligned':i===2?'misaligned':null);
     if(sb!==was)resize();}
   labels();resize();return{step,resize,render:compute};
 })();
@@ -412,10 +463,13 @@ const Dich=(function(){
     ctx.beginPath();ctx.moveTo(PAD.l,sy(T));ctx.lineTo(PAD.l+pW,sy(T));ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle=C.ink;ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='left';
     ctx.fillText('Diagnosis threshold', PAD.l + 4, sy(T) - 5);;}
-  function arrow(T,focus,tailX,headX,rgb){
-    const yc=focus==='case'?(PAD.t+sy(T))/2:(sy(T)+PAD.t+pH)/2;
+  function arrow(T,focus,tailX,headX,rgb,mag){
+    mag=mag||1;
+    const yc=focus==='case'?(PAD.t+sy(T))/2:(sy(T)+PAD.t+pH)/2+(PAD.t+pH-sy(T))*0.16;
     const dir=headX>=tailX?1:-1;
-    const x0=sx(tailX),raw=sx(headX),len=Math.max(Math.abs(raw-x0),34),x1=x0+dir*len;
+    const x0=sx(tailX),raw=sx(headX);
+    const avail=(dir>0?(PAD.l+pW-x0):(x0-PAD.l))-6;        // keep the (magnified) arrow inside the plot
+    const len=Math.max(Math.min(Math.abs(raw-x0)*mag,avail),mag>1?16:34),x1=x0+dir*len;
     const rg=rgb[0]+','+rgb[1]+','+rgb[2],th=22,hw=15,hl=Math.min(18,len*0.5);
     const g=ctx.createLinearGradient(x0,0,x1,0);
     g.addColorStop(0,'rgba('+rg+',0.06)');g.addColorStop(1,'rgba('+rg+',0.55)');
@@ -423,8 +477,10 @@ const Dich=(function(){
     ctx.moveTo(x0,yc-th/2);ctx.lineTo(x1-dir*hl,yc-th/2);ctx.lineTo(x1-dir*hl,yc-hw);
     ctx.lineTo(x1,yc);ctx.lineTo(x1-dir*hl,yc+hw);ctx.lineTo(x1-dir*hl,yc+th/2);ctx.lineTo(x0,yc+th/2);
     ctx.closePath();
+    ctx.lineJoin='round';
+    ctx.strokeStyle=C.paperc;ctx.lineWidth=4.5;ctx.stroke();               // paper halo lifts arrow off the cloud
     ctx.fillStyle=g;ctx.fill();
-    ctx.strokeStyle='rgba('+rg+',0.9)';ctx.lineWidth=1.6;ctx.stroke();      // outline reads over dots
+    ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.stroke();                  // dark outline reads over same-colour dots
     ctx.strokeStyle='rgba('+rg+',0.95)';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(x0,yc);ctx.lineTo(x1-dir*hl*0.55,yc);ctx.stroke();}
   function compute(){const T=thr(prev),focus=eff>0?'case':eff<0?'control':'case';frame(T);
@@ -446,7 +502,7 @@ const Dich=(function(){
       ctx.fillStyle=isCase?C.high:C.low;ctx.beginPath();ctx.arc(sx(pgs[i]),sy(L),3.3,0,6.2832);ctx.fill();
       ctx.strokeStyle=C.gold;ctx.lineWidth=1.8;ctx.stroke();}
     // regression arrow on top, colored by effect direction
-    if(eff!==0&&nO>0&&showResult)arrow(T,focus,mN,mO,eff>0?[198,54,47]:[47,111,158]);
+    if(eff!==0&&nO>0&&showResult)arrow(T,focus,mN,mO,eff>0?[198,54,47]:[47,111,158],1.5);
     ctx.restore();
     const grp=focus==='case'?'cases':'controls';
     const fn=document.getElementById('focusD');
@@ -494,7 +550,20 @@ makeScroller('#stepsD .step',i=>Dich.step(i));
 Cont.step(0);Dich.step(0);
 
 const sims=[Cont,Dich];
-function resizeAll(){sims.forEach(s=>s.resize());}
+// desktop: centre every card on the canvas via top-padding, and make each step tall enough that
+// the next card stays off-screen while its own card sits beside the plot — and so the sticky plot
+// stays pinned through the final (sandbox) step instead of releasing at the bottom of the column
+function alignCards(){const desktop=window.innerWidth>820;
+  [['secC','stepsC'],['secD','stepsD']].forEach(([sec,steps])=>{
+    const g=document.querySelector('#'+sec+' .graphic'),c=g&&g.querySelector('canvas');
+    const gr=g&&g.getBoundingClientRect(),cr=c&&c.getBoundingClientRect();
+    document.querySelectorAll('#'+steps+' .step').forEach(step=>{
+      const card=step.querySelector('.card');
+      if(!desktop||!g||!c||!card){step.style.minHeight='';step.style.paddingTop='';step.style.alignItems='';return;}
+      const ch=card.getBoundingClientRect().height,off=(cr.top-gr.top)+cr.height/2,pad=Math.max(off-ch/2,0);
+      step.style.alignItems='flex-start';step.style.paddingTop=pad+'px';
+      step.style.minHeight=Math.max(pad+ch+40,window.innerHeight*1.12)+'px';});});}
+function resizeAll(){sims.forEach(s=>s.resize());alignCards();}
 window.addEventListener('resize',resizeAll);
 window.addEventListener('orientationchange',()=>setTimeout(resizeAll,200));
 window.addEventListener('load',resizeAll);
@@ -507,7 +576,7 @@ setTimeout(resizeAll,300);
 window.addEventListener('pageshow',resizeAll);
 
 /* ---------------- guided auto-demo ---------------- */
-let demoRunning=false,stopFlag=false;
+let demoRunning=false,stopFlag=false,demoIdx=0,demoGen=0;
 const demoBtn=document.getElementById('demoBtn');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const ease=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
@@ -518,29 +587,58 @@ function tween(el,to,dur){return new Promise(res=>{const from=parseFloat(el.valu
   function f(n){if(stopFlag)return res();const p=Math.min(1,(n-t0)/dur);
     el.value=(from+(to-from)*ease(p)).toFixed(2);el.dispatchEvent(new Event('input',{bubbles:true}));
     p<1?requestAnimationFrame(f):res();}requestAnimationFrame(f);});}
-function stepY(which,s){const el=document.querySelector('#steps'+which+' .step[data-step="'+s+'"]');
-  return el.getBoundingClientRect().top+window.scrollY-window.innerHeight*0.4;}
+function stepY(which,s){const stepEl=document.querySelector('#steps'+which+' .step[data-step="'+s+'"]');
+  const card=stepEl.querySelector('.card');
+  const el=(card&&card.offsetParent!==null)?card:stepEl,rect=el.getBoundingClientRect();
+  let target;
+  if(window.innerWidth>820){const g=document.querySelector('#sec'+which+' .graphic'),c=g&&g.querySelector('canvas');
+    if(c){const gr=g.getBoundingClientRect(),cr=c.getBoundingClientRect();target=(cr.top-gr.top)+cr.height/2;} // align card centre with the (pinned) canvas centre
+    else target=window.innerHeight*0.5;}
+  else{const g=document.querySelector('#sec'+which+' .graphic'); // mobile: land below the sticky graphic
+    const gH=g?g.getBoundingClientRect().height:0;
+    target=Math.min(gH+(window.innerHeight-gH)/2,window.innerHeight-rect.height/2-12);}
+  return rect.top+window.scrollY-(target-rect.height/2);}
 async function goStep(which,s,dur){const sim=which==='C'?Cont:Dich;sim.step(s);
   await scrollToY(stepY(which,s),dur);if(!stopFlag)sim.step(s);}
 function userInterrupt(){if(demoRunning)endDemo();}
-function endDemo(){demoRunning=false;stopFlag=true;demoBtn.textContent='▶ Demo';demoBtn.classList.remove('running');
+function endDemo(){demoRunning=false;stopFlag=true;demoGen++;
+  demoBtn.textContent=(demoIdx>0&&demoIdx<demoSteps.length)?'▶ Resume':'▶ Demo';
+  demoBtn.classList.remove('running');
   ['wheel','touchstart','keydown'].forEach(e=>window.removeEventListener(e,userInterrupt));}
+// the demo as discrete segments so it can pause and resume from the same place
+const demoSteps=[
+  async()=>{await scrollToY(0,700);await wait(2200);},
+  async()=>{await goStep('C',0,850);await wait(5800);},
+  async()=>{await goStep('C',1,850);await wait(5800);},
+  async()=>{await goStep('C',2,850);await wait(6200);},
+  async()=>{await goStep('C',3,850);await wait(7600);},
+  async()=>{await goStep('C',4,850);await wait(3200);},
+  async()=>{const bC=document.getElementById('betaC');
+    await tween(bC,3,1600);await wait(1400);await tween(bC,-3,2800);await wait(1400);await tween(bC,1.6,1300);await wait(1600);},
+  async()=>{const fC=document.getElementById('freqC');
+    await tween(fC,2,1500);await wait(1500);await tween(fC,0.2,1600);await wait(1400);await tween(fC,0.6,1100);await wait(1500);},
+  async()=>{await goStep('D',0,850);await wait(6200);},
+  async()=>{await goStep('D',1,850);await wait(6200);},
+  async()=>{await goStep('D',2,850);await wait(7200);},
+  async()=>{await goStep('D',3,850);await wait(7200);},
+  async()=>{await goStep('D',4,850);await wait(3200);},
+  async()=>{const eD=document.getElementById('effD');
+    await tween(eD,3,1800);await wait(1600);await tween(eD,-3,3000);await wait(1600);await tween(eD,2.2,1400);await wait(1600);},
+  async()=>{const fD=document.getElementById('freqD');
+    await tween(fD,2,1500);await wait(1500);await tween(fD,0.6,1200);await wait(1400);},
+  async()=>{const pD=document.getElementById('prevD');
+    await tween(pD,18,1700);await wait(1600);await tween(pD,2,1700);await wait(1600);await tween(pD,6,1200);await wait(1400);},
+  async()=>{await scrollToY(document.body.scrollHeight,1500);await wait(2400);},
+];
 async function runDemo(){
-  demoRunning=true;stopFlag=false;demoBtn.textContent='■ Stop';demoBtn.classList.add('running');
+  demoRunning=true;stopFlag=false;const gen=++demoGen;demoBtn.textContent='■ Stop';demoBtn.classList.add('running');
   setTimeout(()=>['wheel','touchstart','keydown'].forEach(e=>window.addEventListener(e,userInterrupt,{passive:true})),450);
-  await scrollToY(0,700);await wait(1000);if(stopFlag)return;
-  for(const s of [0,1,2,3]){await goStep('C',s,850);await wait(s===3?1700:1200);if(stopFlag)return;}
-  await goStep('C',4,850);await wait(700);
-  const bC=document.getElementById('betaC');
-  await tween(bC,3,1600);await wait(600);await tween(bC,-3,2800);await wait(600);await tween(bC,1.6,1300);await wait(800);
-  if(stopFlag)return;
-  for(const s of [0,1,2,3]){await goStep('D',s,850);await wait(1500);if(stopFlag)return;}
-  await goStep('D',4,850);await wait(700);
-  const eD=document.getElementById('effD');
-  await tween(eD,3,1800);await wait(800);await tween(eD,-3,3000);await wait(900);await tween(eD,2.2,1400);await wait(800);
-  if(stopFlag)return;
-  await scrollToY(document.body.scrollHeight,1500);await wait(1400);
-  endDemo();
+  if(demoIdx>=demoSteps.length)demoIdx=0;          // finished → start over
+  for(;demoIdx<demoSteps.length;demoIdx++){
+    await demoSteps[demoIdx]();
+    if(stopFlag||gen!==demoGen)return;             // stopped (keep demoIdx) or superseded by a newer run
+  }
+  demoIdx=0;endDemo();
 }
 if(demoBtn)demoBtn.addEventListener('click',()=>{demoRunning?endDemo():runDemo();});
 })();
