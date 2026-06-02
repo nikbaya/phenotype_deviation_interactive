@@ -96,7 +96,16 @@
   .ctllabel{font-weight:700;font-size:13px}
   .ctlval{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;
     background:var(--grey-soft);padding:1px 7px;border-radius:2px}
-  input[type=range]{width:100%;accent-color:var(--rule);height:20px}
+  /* fully custom range — native accent-color progress paint leaked across the page next to the
+     GPU-composited canvas on Chrome/Mac, so we paint the fill ourselves via the --fill var */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;cursor:pointer;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+    background:linear-gradient(to right,var(--rule) var(--fill,50%),var(--grey-soft) var(--fill,50%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-6px;
+    border-radius:50%;background:var(--rule);border:2px solid var(--paper);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--grey-soft)}
+  input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--rule)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:2px solid var(--paper);border-radius:50%;background:var(--rule)}
   .archetypes{display:flex;gap:7px;margin-top:6px}
   .arch{flex:1;font-family:var(--sans);font-weight:700;font-size:11.5px;cursor:pointer;
     border:1.4px solid var(--ink);background:#fff;color:var(--ink);
@@ -141,10 +150,16 @@
   .outro .cite-body a{color:var(--ink);text-decoration:underline}
 
   @media(min-width:821px){
-    /* pull the plot + first card up close to the header, trimming the empty lead-in */
-    .graphic{justify-content:flex-start;padding-top:clamp(10px,4vh,56px)}
+    #page{zoom:1.3}                       /* literal 130% on desktop; JS divides viewport math by this */
+    /* pull the plot + first card up close to the header, trimming the empty lead-in.
+       100vh is scaled by zoom, so shrink it back so the sticky plot still fits one screen. */
+    .graphic{justify-content:flex-start;padding-top:clamp(10px,4vh,56px);height:calc(100vh / 1.3)}
     .steps{padding-top:0}
     .scrolly .step[data-step="0"]{min-height:62vh}
+    /* outro: preprint + citation fill the space to the right of the paragraph */
+    .outro .bar{display:grid;grid-template-columns:34ch 1fr;gap:48px;align-items:start}
+    .outro .bar > p{margin-top:0}
+    .outro-aside .links{margin-top:0}
   }
 
   @media(max-width:820px){
@@ -154,6 +169,9 @@
     .step{min-height:74vh}
     .card{box-shadow:0 2px 22px rgba(0,0,0,.12)}
     .scrolly .step[data-step="4"] .card{display:none}
+    /* reserve a stable height (= the tallest state, measured at mobile width) so toggling effect
+       (no-effect vs pathogenic/protective) doesn't resize the sticky graphic and shift the page */
+    .betaread{min-height:112px}
   }
 </style>
 </head>
@@ -161,6 +179,7 @@
 
 <button id="demoBtn" class="demo-btn" aria-label="Play guided demo">▶ Demo</button>
 
+<div id="page">
 <div class="intro">
   <div class="masthead">
     <div class="kicker">Interactive · The misalignment model</div>
@@ -226,9 +245,9 @@
 
   <div class="steps" id="stepsC">
     <div class="step" data-step="0"><div class="card"><span class="stepkick">The population</span>Each dot is a person. We have lined everyone up by their <b>polygenic score</b> — the prediction baked into common DNA — against the trait they actually have.</div></div>
-    <div class="step" data-step="1"><div class="card"><span class="stepkick">Aligned</span>For most people the forecast holds. Observed trait tracks expected trait, hugging the diagonal. We call them <b>aligned</b>.</div></div>
+    <div class="step" data-step="1"><div class="card"><span class="stepkick">Aligned</span>For most people the forecast holds. Their observed values match the expected values predicted by their common-variant polygenic score, hugging the diagonal. We call them <b>aligned</b>.</div></div>
     <div class="step" data-step="2"><div class="card"><span class="stepkick">Misaligned</span>But look at the edges. Some sit far <span style="color:var(--high)">above</span> or <span style="color:var(--low)">below</span> the line — observing much more, or much less, of the trait than their genes predicted.</div></div>
-    <div class="step" data-step="3"><div class="card"><span class="stepkick">The cause</span>What pulls them out there? Sometimes the <b>burden of rare, damaging variants in a single gene</b> — counted together, not one at a time. The gold-ringed people harbour such variants; watch them flood a tail, and the enrichment odds climb.</div></div>
+    <div class="step" data-step="3"><div class="card"><span class="stepkick">The cause</span>What pulls them out? A <b>burden of rare, damaging variants in a single gene</b>, counted together. Watch the gold-ringed people climb into the extremes — and the enrichment odds rise.</div></div>
     <div class="step" data-step="4"><div class="card"><span class="stepkick">Your turn</span>The controls are live — explore how rare-variant burden reshapes the tails.</div></div>
   </div>
 </section>
@@ -278,7 +297,7 @@
   <div class="steps" id="stepsD">
     <div class="step" data-step="0"><div class="card"><span class="stepkick">Liability</span>Genetic and other risks sum into a hidden <b>liability</b>. We plot it against polygenic risk — risk rising as you move right.</div></div>
     <div class="step" data-step="1"><div class="card"><span class="stepkick">The threshold</span>Above a threshold you are diagnosed — a <span style="color:var(--high)">case</span>. Below it, a <span style="color:var(--low)">control</span>.</div></div>
-    <div class="step" data-step="2"><div class="card"><span class="stepkick">Pathogenic</span>A pathogenic <b>burden</b> — rare damaging variants in the gene, counted together — lifts liability. It can carry a <b>low-risk</b> person over the line, so cases with that burden cluster at low PRS. The gold arrow is the shift: the regression of PRS on burden status.</div></div>
+    <div class="step" data-step="2"><div class="card"><span class="stepkick">Pathogenic</span>A pathogenic <b>burden</b> lifts liability, carrying <b>low-risk</b> people over the line. Cases with it cluster at low PRS — the red arrow marks the shift.</div></div>
     <div class="step" data-step="3"><div class="card"><span class="stepkick">Protective</span>A protective burden does the reverse — holding <b>high-risk</b> people under the line, so controls with it cluster at high PRS. The arrow flips direction.</div></div>
     <div class="step" data-step="4"><div class="card"><span class="stepkick">Your turn</span>The controls are live — slide from protective to pathogenic and watch the arrow.</div></div>
   </div>
@@ -286,20 +305,24 @@
 
 <div class="outro"><div class="bar">
   <p>The gap between prediction and reality is where rare, large-effect variants hide. Find those people — and you have a way to find those genes.</p>
-  <div class="links">
-    <a href="https://www.medrxiv.org/content/10.64898/2025.12.30.25343229v1" target="_blank" rel="noopener">Read the preprint</a>
-  </div>
-  <div class="cite">
-    <div class="cite-head">How to cite</div>
-    <p class="cite-body">Baya NA, Lassen FH, Hill B, Venkatesh SS, Currant H, Lindgren CM, Palmer DS. <i>Individuals whose phenotype deviates from genetic expectation defined by common variation are enriched for rare damaging variants in genes that cause rare disease.</i> medRxiv 2025.12.30.25343229; doi: <a href="https://doi.org/10.64898/2025.12.30.25343229" target="_blank" rel="noopener">https://doi.org/10.64898/2025.12.30.25343229</a></p>
+  <div class="outro-aside">
+    <div class="links">
+      <a href="https://www.medrxiv.org/content/10.64898/2025.12.30.25343229v1" target="_blank" rel="noopener">Read the preprint</a>
+    </div>
+    <div class="cite">
+      <div class="cite-head">How to cite</div>
+      <p class="cite-body">Baya NA, Lassen FH, Hill B, Venkatesh SS, Currant H, Lindgren CM, Palmer DS. <i>Individuals whose phenotype deviates from genetic expectation defined by common variation are enriched for rare damaging variants in genes that cause rare disease.</i> medRxiv 2025.12.30.25343229; doi: <a href="https://doi.org/10.64898/2025.12.30.25343229" target="_blank" rel="noopener">https://doi.org/10.64898/2025.12.30.25343229</a></p>
+    </div>
   </div>
 </div></div>
+</div><!-- /#page -->
 
 <script>
 (function(){
 "use strict";
 const N=12000;
 const C={ink:'#16140f',grey:'#b8b4aa',gsoft:'#e6e3da',high:'#c6362f',low:'#2f6f9e',gold:'#d39b1f',muted:'#6e6a60',rule:'#e3120b',paperc:'#fbfaf6'};
+const ZOOM=()=>window.innerWidth>820?1.3:1;   // matches #page{zoom:1.3} on desktop; rects/sizes set as CSS px get re-scaled, so divide
 // fixed seed → identical population every reload (mulberry32)
 let _seed=0x00bada55;
 function rng(){_seed=_seed+0x6d2b79f5|0;let t=Math.imul(_seed^_seed>>>15,1|_seed);
@@ -312,7 +335,7 @@ function fitCanvas(cv,ctx,ratio,frac){
   const parent=cv.parentElement;
   let cssW=Math.max(((parent&&parent.clientWidth)||cv.clientWidth)||320,200);
   let cssH=cssW/ratio;
-  const maxH=window.innerHeight*(frac||(window.innerWidth<=820?0.40:0.46));
+  const maxH=window.innerHeight*(frac||(window.innerWidth<=820?0.40:0.46))/ZOOM();
   if(cssH>maxH){cssH=maxH;cssW=cssH*ratio;}
   const dpr=Math.min(window.devicePixelRatio||1,2);
   cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
@@ -321,10 +344,11 @@ function fitCanvas(cv,ctx,ratio,frac){
   return{W:cssW,H:cssH};
 }
 function fmt(x){return x>=100?String(Math.round(x)):x>=10?x.toFixed(0):x.toFixed(1);}
+function setFill(el){const mn=+el.min,mx=+el.max;el.style.setProperty('--fill',((+el.value-mn)/(mx-mn)*100)+'%');} // webkit track fill
 function haldaneOR(a,b,c,d){const A=a+.5,B=b+.5,Cc=c+.5,D=d+.5;
   const or=(A*D)/(B*Cc),se=Math.sqrt(1/A+1/B+1/Cc+1/D);
   return{or,lo:Math.exp(Math.log(or)-1.645*se),hi:Math.exp(Math.log(or)+1.645*se)};}
-function drawForest(id,or,lo,hi){const svg=document.getElementById(id);svg.innerHTML='';
+function drawForest(id,or,lo,hi,color){const svg=document.getElementById(id);svg.innerHTML='';
   const w=svg.clientWidth||280,h=44,pad=10,ns='http://www.w3.org/2000/svg';
   const lmin=Math.log10(0.5),lmax=Math.log10(2000);
   const X=v=>pad+(Math.log10(Math.min(Math.max(v,0.5),2000))-lmin)/(lmax-lmin)*(w-2*pad);
@@ -333,9 +357,9 @@ function drawForest(id,or,lo,hi){const svg=document.getElementById(id);svg.inner
   const yy=18,L=document.createElementNS(ns,'line');L.setAttribute('x1',X(lo));L.setAttribute('x2',X(hi));
   L.setAttribute('y1',yy);L.setAttribute('y2',yy);L.setAttribute('stroke',C.ink);L.setAttribute('stroke-width',2.2);svg.appendChild(L);
   const dot=document.createElementNS(ns,'circle');dot.setAttribute('cx',X(or));dot.setAttribute('cy',yy);dot.setAttribute('r',5);
-  dot.setAttribute('fill',C.rule);dot.setAttribute('stroke','#fff');dot.setAttribute('stroke-width',1.4);svg.appendChild(dot);
+  dot.setAttribute('fill',color||C.rule);dot.setAttribute('stroke','#fff');dot.setAttribute('stroke-width',1.4);svg.appendChild(dot);
   [1,10,100,1000].forEach(t=>{const tx=document.createElementNS(ns,'text');tx.setAttribute('x',X(t));tx.setAttribute('y',h-2);
-    tx.setAttribute('text-anchor','middle');tx.setAttribute('font-size','9');tx.setAttribute('font-family','Archivo,sans-serif');
+    tx.setAttribute('text-anchor','middle');tx.setAttribute('font-size','10');tx.setAttribute('font-family','Archivo,sans-serif');
     tx.setAttribute('fill',C.muted);tx.textContent=t;svg.appendChild(tx);});}
 
 /* generic scroller (scrollama if present, else IntersectionObserver) */
@@ -354,8 +378,12 @@ const Cont=(function(){
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
   function resize(){const d=fitCanvas(cv,ctx,640/440,(sb&&window.innerWidth<=820)?0.30:0);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
-  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null;
+  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,dispBeta=0,flowRAF=null;
+  const bloomAmt=new Float32Array(N);   // sandbox: per-dot carrier-ness, eased for the live frequency bloom
   const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v,easeOut=p=>1-Math.pow(1-p,3);
+  const hashFrac=i=>((Math.imul(i^0x9e3779b9,2654435761))>>>0)/4294967296; // deterministic per-dot [0,1)
+  const BLOOM_STAG=3200,BLOOM_RISE=1700,BLOOM_FADE=650; // staggered grow-in; sign fades in once all have grown
   function frame(){ctx.clearRect(0,0,W,H);
     ctx.beginPath();
     ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();
@@ -372,12 +400,13 @@ const Cont=(function(){
     ctx.beginPath();ctx.moveTo(sx(-XR),sy(-XR));ctx.lineTo(sx(XR),sy(XR));ctx.stroke();ctx.setLineDash([]);
     ctx.strokeStyle=C.ink;ctx.lineWidth=1.4;ctx.beginPath();
     ctx.moveTo(PAD.l,PAD.t);ctx.lineTo(PAD.l,PAD.t+pH);ctx.lineTo(PAD.l+pW,PAD.t+pH);ctx.stroke();
-    ctx.fillStyle=C.ink;ctx.font='700 12px Archivo,sans-serif';ctx.textAlign='center';
+    ctx.fillStyle=C.ink;ctx.font='700 13px Archivo,sans-serif';ctx.textAlign='center';
     ctx.fillText('Polygenic score  (expected)',PAD.l+pW/2,H-9);
     ctx.save();ctx.translate(12,PAD.t+pH/2);ctx.rotate(-Math.PI/2);ctx.fillText('Observed trait',0,0);ctx.restore();
-    if(showTails){ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='left';
+    if(showTails){ctx.font='700 12px Archivo,sans-serif';ctx.textAlign='left';
       ctx.fillStyle=C.high;ctx.fillText('HIGHER than expected',PAD.l+8,PAD.t+13);
-      ctx.fillStyle=C.low;ctx.fillText('LOWER than expected',PAD.l+8,PAD.t+pH-7);}}
+      ctx.textAlign='right';ctx.fillStyle=C.low;ctx.fillText('LOWER than expected',PAD.l+pW-8,PAD.t+pH-7);
+      ctx.textAlign='left';}}
   const col=r=>r>2?C.high:r<-2?C.low:Math.abs(r)<1?'rgba(120,116,106,.5)':'rgba(120,116,106,.2)';
   // soft glow rasterised on an offscreen layer with 'lighten' so overlapping halos take the
   // max rather than stacking to full intensity, then composited once at low opacity
@@ -395,60 +424,100 @@ const Cont=(function(){
       g.addColorStop(0,'rgba('+rgb+','+(0.35+loc*0.5).toFixed(3)+')');g.addColorStop(1,'rgba('+rgb+',0)');
       glowCtx.fillStyle=g;glowCtx.beginPath();glowCtx.arc(px,py,rad,0,6.2832);glowCtx.fill();}
     ctx.save();ctx.globalAlpha=0.6;ctx.drawImage(glowCv,0,0,W,H);ctx.restore();}
+  // "Rare-variant burden" sign — fades in (with a small upward drift) once the flowers have grown
+  function drawBurdenSign(a){const e=easeOut(a),cx=sx(0),ay=PAD.t+pH*0.30+(1-e)*8;
+    ctx.save();ctx.globalAlpha=e;ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
+    ctx.lineCap='round';ctx.lineJoin='round';
+    for(let pass=0;pass<2;pass++){ctx.strokeStyle=pass?C.gold:C.paperc;ctx.lineWidth=pass?2.4:5;
+      ctx.beginPath();ctx.moveTo(cx,ay+16);ctx.lineTo(cx,ay-16);
+      ctx.moveTo(cx-6,ay-8);ctx.lineTo(cx,ay-16);ctx.lineTo(cx+6,ay-8);ctx.stroke();}
+    ctx.lineCap='butt';ctx.font='700 13px Archivo,sans-serif';ctx.textAlign='center';
+    ctx.lineWidth=3;ctx.strokeStyle=C.paperc;ctx.strokeText('Rare-variant burden',cx,ay-24);
+    ctx.fillStyle=C.gold;ctx.fillText('Rare-variant burden',cx,ay-24);ctx.textAlign='left';ctx.restore();}
   function compute(){const target=beta<0?'low':'high';let a=0,b=0,c=0,d=0;const obs=[];frame();
     ctx.save();ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
-    const glowPts=[];
-    for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq,r=isObs?resid[i]+beta:resid[i],y=pgs[i]+r;
+    const now=performance.now(),glowPts=[];
+    for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq;
+      let bEff=beta;                                   // during bloom each carrier's burden ramps in, so counts/OR climb live
+      if(isObs&&pulse==='bloom'&&!reduceMotion)bEff=beta*easeOut(clamp((now-bloomStart-hashFrac(i)*BLOOM_STAG)/BLOOM_RISE,0,1));
+      const r=isObs?resid[i]+bEff:resid[i],y=pgs[i]+r;
       const inTail=target==='low'?r<-2:r>2,al=Math.abs(r)<1;
-      if(isObs){if(inTail)a++;else if(al)b++;obs.push([i,r,y]);}
-      else{if(inTail)c++;else if(al)d++;const px=sx(pgs[i]),py=sy(y);
-        if(pulse==='misaligned'&&(r>2||r<-2)){glowPts.push(px,py,r>2?1:0);
-          ctx.fillStyle=r>2?C.high:C.low;ctx.beginPath();ctx.arc(px,py,2,0,6.2832);ctx.fill();}
-        else{ctx.fillStyle=col(r);ctx.beginPath();ctx.arc(px,py,1.6,0,6.2832);ctx.fill();}}}
+      if(isObs){if(inTail)a++;else if(al)b++;obs.push(i);}
+      else{if(inTail)c++;else if(al)d++;
+        if(sb&&bloomAmt[i]>0.02)obs.push(i);          // still easing back to baseline → keep drawing it as a fading carrier
+        else{const px=sx(pgs[i]),py=sy(y);
+          if(pulse==='misaligned'&&(r>2||r<-2)){glowPts.push(px,py,r>2?1:0);
+            ctx.fillStyle=r>2?C.high:C.low;ctx.beginPath();ctx.arc(px,py,2,0,6.2832);ctx.fill();}
+          else{ctx.fillStyle=col(r);ctx.beginPath();ctx.arc(px,py,1.6,0,6.2832);ctx.fill();}}}}
     drawGlow(glowPts);
-    for(const[i,r,y]of obs){const baseY=pgs[i]+resid[i];
-      if(beta!==0){ctx.strokeStyle='rgba(211,155,31,.5)';ctx.lineWidth=1.1;
-        ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseY));ctx.lineTo(sx(pgs[i]),sy(y));ctx.stroke();}
-      ctx.fillStyle=r>2?C.high:r<-2?C.low:'#8a8578';
-      ctx.beginPath();ctx.arc(sx(pgs[i]),sy(y),3.3,0,6.2832);ctx.fill();
-      ctx.strokeStyle=C.gold;ctx.lineWidth=1.8;ctx.stroke();}
+    // gold "burden carriers": rise from their zero-effect spot into the tail
+    for(const i of obs){const baseY=pgs[i]+resid[i];
+      let drawOff;
+      if(sb)drawOff=dispBeta*bloomAmt[i];             // sandbox: effect flow (dispBeta) × frequency bloom (bloomAmt)
+      else if(pulse==='bloom'&&!reduceMotion)drawOff=beta*easeOut(clamp((now-bloomStart-hashFrac(i)*BLOOM_STAG)/BLOOM_RISE,0,1));
+      else drawOff=beta;
+      const yD=baseY+drawOff,rD=resid[i]+drawOff,ringA=sb?Math.min(1,bloomAmt[i]*1.4):1;
+      if(drawOff!==0){ctx.globalAlpha=ringA*0.5;ctx.strokeStyle=C.gold;ctx.lineWidth=1.1;
+        ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseY));ctx.lineTo(sx(pgs[i]),sy(yD));ctx.stroke();ctx.globalAlpha=1;}
+      ctx.fillStyle=rD>2?C.high:rD<-2?C.low:'#8a8578';
+      ctx.beginPath();ctx.arc(sx(pgs[i]),sy(yD),3.3,0,6.2832);ctx.fill();
+      ctx.globalAlpha=ringA;ctx.strokeStyle=C.gold;ctx.lineWidth=1.8;ctx.stroke();ctx.globalAlpha=1;}
     ctx.restore();
+    if(pulse==='bloom'&&(reduceMotion||now-bloomStart>=BLOOM_STAG+BLOOM_RISE))
+      drawBurdenSign(reduceMotion?1:clamp((now-bloomStart-BLOOM_STAG-BLOOM_RISE)/BLOOM_FADE,0,1));
     const tw=target==='low'?'lower':'higher';
     document.getElementById('captC').innerHTML='Variant observed in the <b>'+tw+'-misaligned</b> tail';
     document.getElementById('colMisC').textContent=tw.charAt(0).toUpperCase()+tw.slice(1)+' mis.';
     document.getElementById('aC').textContent=a;document.getElementById('bC').textContent=b;
     document.getElementById('cC').textContent=c;document.getElementById('dC').textContent=d;
     const {or,lo,hi}=haldaneOR(a,b,c,d);
+    let fcol=C.grey;                               // grey unless the 90% CI excludes 1
     if(beta===0||freq===0){document.getElementById('orvalC').textContent='≈1';
       document.getElementById('orciC').textContent='no enrichment';}
     else{document.getElementById('orvalC').textContent=fmt(or)+'×';
-      document.getElementById('orciC').textContent='90% CI '+fmt(lo)+'–'+fmt(hi)+(a===0?' · none in tail yet':'');}
-    drawForest('forestC',or,lo,hi);
+      document.getElementById('orciC').textContent='90% CI '+fmt(lo)+'–'+fmt(hi)+(a===0?' · none in tail yet':'');
+      if(lo>1||hi<1)fcol=target==='high'?C.high:C.low;}
+    drawForest('forestC',or,lo,hi,fcol);
     document.getElementById('resultC').classList.toggle('show',showResult);}
   let pulseRAF=null;
-  function pulseTick(){if(!pulse){pulseRAF=null;return;}compute();pulseRAF=requestAnimationFrame(pulseTick);}
-  function setPulse(p){pulse=p;
+  function pulseTick(){if(!pulse){pulseRAF=null;return;}compute();
+    if(pulse==='bloom'&&performance.now()-bloomStart>=BLOOM_STAG+BLOOM_RISE+BLOOM_FADE){pulseRAF=null;return;} // bloom + fade done → stop
+    pulseRAF=requestAnimationFrame(pulseTick);}
+  function setPulse(p){if(p==='bloom'&&pulse!=='bloom')bloomStart=performance.now();pulse=p;
     if(p&&!reduceMotion){if(!pulseRAF)pulseRAF=requestAnimationFrame(pulseTick);}
     else{if(pulseRAF){cancelAnimationFrame(pulseRAF);pulseRAF=null;}compute();}}
+  // sandbox flow: ease displayed beta toward the slider, and each carrier's bloom toward observed/not
+  function flowTick(){dispBeta+=(beta-dispBeta)*0.2;if(Math.abs(beta-dispBeta)<0.003)dispBeta=beta;
+    let moving=dispBeta!==beta;
+    for(let i=0;i<N;i++){const tgt=(freq>0&&vu[i]<freq)?1:0,cur=bloomAmt[i];
+      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}}
+    compute();
+    flowRAF=moving?requestAnimationFrame(flowTick):null;}
+  function startFlow(){if(reduceMotion){dispBeta=beta;for(let i=0;i<N;i++)bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;compute();return;}
+    if(!flowRAF)flowRAF=requestAnimationFrame(flowTick);}
   const bE=document.getElementById('betaC'),fE=document.getElementById('freqC');
   function labels(){const bv=+bE.value;document.getElementById('betavalC').textContent=(bv>=0?'+':'')+bv.toFixed(1)+' SD';
-    document.getElementById('freqvalC').textContent=(+fE.value).toFixed(2)+'%';}
-  let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;beta=+bE.value;freq=+fE.value/100;compute();});};
+    document.getElementById('freqvalC').textContent=(+fE.value).toFixed(2)+'%';setFill(bE);setFill(fE);}
+  let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;beta=+bE.value;freq=+fE.value/100;
+    if(sb)startFlow();else compute();});};
   function setArch(id){['a0C','a1C','a2C'].forEach(x=>document.getElementById(x).setAttribute('data-on',x===id?'1':'0'));}
   bE.addEventListener('input',()=>{labels();setArch(null);go();});
   fE.addEventListener('input',()=>{labels();go();});
   document.querySelectorAll('#a0C,#a1C,#a2C').forEach(btn=>btn.addEventListener('click',()=>{bE.value=btn.dataset.beta;setArch(btn.id);labels();go();}));
-  function set(o){if('beta'in o){bE.value=o.beta;}if('freq'in o){fE.value=o.freq;}beta=+bE.value;freq=+fE.value/100;
+  function set(o){if('beta'in o){bE.value=o.beta;}if('freq'in o){fE.value=o.freq;}beta=+bE.value;
+    freq=('freq'in o)?o.freq/100:+fE.value/100;          // honor exact 0 (slider min is 0.05, so it would clamp)
     if('showTails'in o)showTails=o.showTails;if('showResult'in o)showResult=o.showResult;labels();compute();}
   function step(i){const live=document.getElementById('ctlC'),was=sb;sb=(i===4);
     document.getElementById('secC').classList.toggle('sandbox',sb);
+    if(!sb&&flowRAF){cancelAnimationFrame(flowRAF);flowRAF=null;}
     if(i<4)live.classList.remove('live');
     if(i===0)set({beta:0,freq:0,showTails:false,showResult:false});
     else if(i===1)set({beta:0,freq:0,showTails:false,showResult:false});
     else if(i===2)set({beta:0,freq:0,showTails:true,showResult:false});
     else if(i===3)set({beta:1.6,freq:0.6,showTails:true,showResult:true});
-    else if(i===4){live.classList.add('live');showTails=true;showResult=true;compute();}
-    setPulse(i===1?'aligned':i===2?'misaligned':null);
+    else if(i===4){live.classList.add('live');showTails=true;showResult=true;
+      dispBeta=beta;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
+    setPulse(i===1?'aligned':i===2?'misaligned':i===3?'bloom':null);
     if(sb!==was)resize();}
   labels();resize();return{step,resize,render:compute};
 })();
@@ -464,66 +533,75 @@ const Dich=(function(){
   for(let i=0;i<N;i++)baseLiab[i]=cP*pgs[i]+cE*env[i];
   const sortedBase=Float32Array.from(baseLiab).sort();
   const thr=p=>sortedBase[Math.min(N-1,Math.max(0,Math.floor((1-p)*N)))];
-  let eff=0,freq=0,prev=0.06,showResult=false,showLabels=false,sb=false;
+  let eff=0,freq=0,prev=0.06,showResult=false,showLabels=false,showRisk=false,sb=false,dispEff=0,flowRAF=null;
+  const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches,bloomAmt=new Float32Array(N);
   function frame(T){ctx.clearRect(0,0,W,H);
     ctx.strokeStyle=C.ink;ctx.lineWidth=1.4;ctx.beginPath();
     ctx.moveTo(PAD.l,PAD.t);ctx.lineTo(PAD.l,PAD.t+pH);ctx.lineTo(PAD.l+pW,PAD.t+pH);ctx.stroke();
-    ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.font='700 12px Archivo,sans-serif';
+    ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.font='700 13px Archivo,sans-serif';
     ctx.fillText('Polygenic risk score (PRS)',PAD.l+pW/2,H-9);
     ctx.save();ctx.translate(12,PAD.t+pH/2);ctx.rotate(-Math.PI/2);ctx.fillText('Liability',0,0);ctx.restore();
-    if(showLabels){ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='left';
+    if(showLabels){ctx.font='700 12px Archivo,sans-serif';ctx.textAlign='left';
       ctx.fillStyle=C.high;ctx.fillText('CASES',PAD.l+8,PAD.t+13);
       ctx.fillStyle=C.low;ctx.fillText('CONTROLS',PAD.l+8,PAD.t+pH-7);}}
   function thline(T){ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.setLineDash([6,4]);
     ctx.beginPath();ctx.moveTo(PAD.l,sy(T));ctx.lineTo(PAD.l+pW,sy(T));ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle=C.ink;ctx.font='700 11px Archivo,sans-serif';ctx.textAlign='left';
+    ctx.fillStyle=C.ink;ctx.font='700 12px Archivo,sans-serif';ctx.textAlign='left';
     ctx.fillText('Diagnosis threshold', PAD.l + 4, sy(T) - 5);;}
   function arrow(T,focus,tailX,headX,rgb,mag){
     mag=mag||1;
-    const yc=focus==='case'?(PAD.t+sy(T))/2:(sy(T)+PAD.t+pH)/2+(PAD.t+pH-sy(T))*0.16;
+    const yc=focus==='case'?(PAD.t+sy(T))/2:(sy(T)+PAD.t+pH)/2+(PAD.t+pH-sy(T))*0.34;
     const dir=headX>=tailX?1:-1;
     const x0=sx(tailX),raw=sx(headX);
     const avail=(dir>0?(PAD.l+pW-x0):(x0-PAD.l))-6;        // keep the (magnified) arrow inside the plot
     const len=Math.max(Math.min(Math.abs(raw-x0)*mag,avail),mag>1?16:34),x1=x0+dir*len;
-    const rg=rgb[0]+','+rgb[1]+','+rgb[2],th=22,hw=15,hl=Math.min(18,len*0.5);
-    const g=ctx.createLinearGradient(x0,0,x1,0);
-    g.addColorStop(0,'rgba('+rg+',0.06)');g.addColorStop(1,'rgba('+rg+',0.55)');
-    ctx.beginPath();
-    ctx.moveTo(x0,yc-th/2);ctx.lineTo(x1-dir*hl,yc-th/2);ctx.lineTo(x1-dir*hl,yc-hw);
-    ctx.lineTo(x1,yc);ctx.lineTo(x1-dir*hl,yc+hw);ctx.lineTo(x1-dir*hl,yc+th/2);ctx.lineTo(x0,yc+th/2);
-    ctx.closePath();
-    ctx.lineJoin='round';
-    ctx.strokeStyle=C.paperc;ctx.lineWidth=4.5;ctx.stroke();               // paper halo lifts arrow off the cloud
-    ctx.fillStyle=g;ctx.fill();
-    ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.stroke();                  // dark outline reads over same-colour dots
-    ctx.strokeStyle='rgba('+rg+',0.95)';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(x0,yc);ctx.lineTo(x1-dir*hl*0.55,yc);ctx.stroke();}
+    const rg=rgb[0]+','+rgb[1]+','+rgb[2],hl=Math.min(14,len*0.55),hw=8,baseX=x1-dir*hl;
+    ctx.lineCap='round';ctx.lineJoin='round';                              // line arrow: shaft + solid head
+    for(let pass=0;pass<2;pass++){                                          // shaft, paper halo then colour
+      ctx.strokeStyle=pass?'rgba('+rg+',0.95)':C.paperc;ctx.lineWidth=pass?2.6:5.5;
+      ctx.beginPath();ctx.moveTo(x0,yc);ctx.lineTo(baseX,yc);ctx.stroke();}
+    ctx.lineCap='butt';
+    ctx.beginPath();ctx.moveTo(x1,yc);ctx.lineTo(baseX,yc-hw);ctx.lineTo(baseX,yc+hw);ctx.closePath();
+    ctx.strokeStyle=C.paperc;ctx.lineWidth=3;ctx.stroke();                  // paper halo around solid head
+    ctx.fillStyle='rgba('+rg+',0.95)';ctx.fill();}
   function compute(){const T=thr(prev),focus=eff>0?'case':eff<0?'control':'case';frame(T);
     ctx.save();ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
     const fp=[],mem=new Uint8Array(N),ob=new Uint8Array(N);
     for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq;ob[i]=isObs?1:0;
       const L=baseLiab[i]+(isObs?eff:0),isCase=L>T,inF=focus==='case'?isCase:!isCase;mem[i]=inF?1:0;
       if(inF)fp.push(pgs[i]);
-      if(!isObs){ctx.fillStyle=isCase?'rgba(198,54,47,.5)':'rgba(47,111,158,.45)';
+      if(!isObs&&!(sb&&bloomAmt[i]>0.02)){ctx.fillStyle=isCase?'rgba(198,54,47,.5)':'rgba(47,111,158,.45)';
         ctx.beginPath();ctx.arc(sx(pgs[i]),sy(L),1.6,0,6.2832);ctx.fill();}}
     thline(T);
     let sO=0,nO=0,sN=0,nN=0,qO=0,qN=0;
     for(let i=0;i<N;i++){if(!mem[i])continue;if(ob[i]){sO+=pgs[i];qO+=pgs[i]*pgs[i];nO++;}else{sN+=pgs[i];qN+=pgs[i]*pgs[i];nN++;}}
     const mO=nO?sO/nO:0,mN=nN?sN/nN:0,beta=mO-mN;
     // observed dots + gold connectors
-    for(let i=0;i<N;i++){if(!ob[i])continue;const L=baseLiab[i]+eff,isCase=L>T;
-      if(eff!==0){ctx.strokeStyle='rgba(211,155,31,.5)';ctx.lineWidth=1.1;
-        ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseLiab[i]));ctx.lineTo(sx(pgs[i]),sy(L));ctx.stroke();}
+    for(let i=0;i<N;i++){if(!ob[i]&&!(sb&&bloomAmt[i]>0.02))continue;
+      const off=sb?dispEff*bloomAmt[i]:eff,L=baseLiab[i]+off,isCase=L>T,ringA=sb?Math.min(1,bloomAmt[i]*1.4):1;
+      if(off!==0){ctx.globalAlpha=ringA*0.5;ctx.strokeStyle=C.gold;ctx.lineWidth=1.1;
+        ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseLiab[i]));ctx.lineTo(sx(pgs[i]),sy(L));ctx.stroke();ctx.globalAlpha=1;}
       ctx.fillStyle=isCase?C.high:C.low;ctx.beginPath();ctx.arc(sx(pgs[i]),sy(L),3.3,0,6.2832);ctx.fill();
-      ctx.strokeStyle=C.gold;ctx.lineWidth=1.8;ctx.stroke();}
+      ctx.globalAlpha=ringA;ctx.strokeStyle=C.gold;ctx.lineWidth=1.8;ctx.stroke();ctx.globalAlpha=1;}
     // regression arrow on top, colored by effect direction
     if(eff!==0&&nO>0&&showResult)arrow(T,focus,mN,mO,eff>0?[198,54,47]:[47,111,158],1.5);
+    if(showRisk){const ry=PAD.t+pH-18,rl=PAD.l+12,rr=PAD.l+pW-12;  // PRS = risk axis: low (left) ↔ high (right); only on the 'Liability' step
+      ctx.lineCap='round';ctx.lineJoin='round';
+      for(let pass=0;pass<2;pass++){ctx.strokeStyle=pass?C.muted:C.paperc;ctx.lineWidth=pass?1.8:4.5;
+        ctx.beginPath();ctx.moveTo(rl,ry);ctx.lineTo(rr,ry);
+        ctx.moveTo(rl+9,ry-5);ctx.lineTo(rl,ry);ctx.lineTo(rl+9,ry+5);
+        ctx.moveTo(rr-9,ry-5);ctx.lineTo(rr,ry);ctx.lineTo(rr-9,ry+5);ctx.stroke();}
+      ctx.lineCap='butt';ctx.font='700 11px Archivo,sans-serif';
+      ctx.lineWidth=3;ctx.strokeStyle=C.paperc;
+      ctx.textAlign='left';ctx.strokeText('Low risk',rl+6,ry-6);ctx.fillStyle=C.muted;ctx.fillText('Low risk',rl+6,ry-6);
+      ctx.textAlign='right';ctx.strokeStyle=C.paperc;ctx.strokeText('High risk',rr-6,ry-6);ctx.fillStyle=C.muted;ctx.fillText('High risk',rr-6,ry-6);
+      ctx.textAlign='left';}
     ctx.restore();
     const grp=focus==='case'?'cases':'controls';
     const fn=document.getElementById('focusD');
-    if(eff===0)fn.innerHTML='No effect — burden in the gene sits at random across PRS.';
-    else if(eff>0)fn.innerHTML='<b>Focus: cases.</b> A pathogenic rare-variant burden lets people cross the threshold without high common-variant risk.';
-    else fn.innerHTML='<b>Focus: controls.</b> A protective rare-variant burden keeps high-risk people below the threshold.';
+    if(eff===0)fn.innerHTML='No effect — burden sits at random across PRS.';
+    else if(eff>0)fn.innerHTML='<b>Focus: cases.</b> A pathogenic burden lets low-PRS people cross the line.';
+    else fn.innerHTML='<b>Focus: controls.</b> A protective burden holds high-PRS people below it.';
     const bb=document.getElementById('betabigD'),bs=document.getElementById('betasubD');
     bb.classList.remove('sig','ns');bb.style.color='';
     if(eff===0||nO<2){bb.classList.add('ns');bb.textContent='β ≈ 0';
@@ -532,30 +610,43 @@ const Dich=(function(){
       const lo=beta-1.645*se,hi=beta+1.645*se,sig=(lo>0&&hi>0)||(lo<0&&hi<0),clr=eff>0?C.high:C.low;
       bb.classList.add(sig?'sig':'ns');if(sig)bb.style.color=clr;
       bb.textContent='β = '+(beta>=0?'+':'')+beta.toFixed(2)+(sig?' *':'');
-      bs.innerHTML='PRS shift for people with rare-variant burden in the gene, within <b>'+grp+'</b><br>90% CI '+lo.toFixed(2)+' to '+hi.toFixed(2)+(sig?' — <b style="color:'+clr+'">significant *</b>':' — not significant (CI crosses 0)');}
+      bs.innerHTML='PRS shift for people with the burden, within <b>'+grp+'</b><br>90% CI '+lo.toFixed(2)+' to '+hi.toFixed(2)+(sig?' — <b style="color:'+clr+'">significant *</b>':' — not significant (CI crosses 0)');}
     document.getElementById('betareadD').classList.toggle('show',showResult);}
+  // sandbox flow: ease displayed effect toward the slider, and each carrier's bloom toward observed/not
+  function flowTick(){dispEff+=(eff-dispEff)*0.2;if(Math.abs(eff-dispEff)<0.003)dispEff=eff;
+    let moving=dispEff!==eff;
+    for(let i=0;i<N;i++){const tgt=(freq>0&&vu[i]<freq)?1:0,cur=bloomAmt[i];
+      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}}
+    compute();
+    flowRAF=moving?requestAnimationFrame(flowTick):null;}
+  function startFlow(){if(reduceMotion){dispEff=eff;for(let i=0;i<N;i++)bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;compute();return;}
+    if(!flowRAF)flowRAF=requestAnimationFrame(flowTick);}
   const eE=document.getElementById('effD'),fE=document.getElementById('freqD'),pE=document.getElementById('prevD');
   function labels(){const ev=+eE.value;
     document.getElementById('effvalD').textContent=ev===0?'none':(ev>0?'pathogenic '+ev.toFixed(1):'protective '+Math.abs(ev).toFixed(1));
     document.getElementById('freqvalD').textContent=(+fE.value).toFixed(2)+'%';
-    document.getElementById('prevvalD').textContent=(+pE.value)+'%';}
-  let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;eff=+eE.value;freq=+fE.value/100;prev=+pE.value/100;compute();});};
+    document.getElementById('prevvalD').textContent=(+pE.value)+'%';setFill(eE);setFill(fE);setFill(pE);}
+  let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;eff=+eE.value;freq=+fE.value/100;prev=+pE.value/100;
+    if(sb)startFlow();else compute();});};
   function setArch(id){['a0D','a1D','a2D'].forEach(x=>document.getElementById(x).setAttribute('data-on',x===id?'1':'0'));}
   eE.addEventListener('input',()=>{labels();setArch(null);go();});
   fE.addEventListener('input',()=>{labels();go();});
   pE.addEventListener('input',()=>{labels();go();});
   document.querySelectorAll('#a0D,#a1D,#a2D').forEach(btn=>btn.addEventListener('click',()=>{eE.value=btn.dataset.eff;setArch(btn.id);labels();go();}));
   function set(o){if('eff'in o)eE.value=o.eff;if('freq'in o)fE.value=o.freq;if('prev'in o)pE.value=o.prev;
-    eff=+eE.value;freq=+fE.value/100;prev=+pE.value/100;
+    eff=+eE.value;freq=('freq'in o)?o.freq/100:+fE.value/100;prev=+pE.value/100;  // honor exact 0 (slider min 0.05)
     if('showResult'in o)showResult=o.showResult;if('showLabels'in o)showLabels=o.showLabels;labels();compute();}
   function step(i){const live=document.getElementById('ctlD'),was=sb;sb=(i===4);
     document.getElementById('secD').classList.toggle('sandbox',sb);
+    if(!sb&&flowRAF){cancelAnimationFrame(flowRAF);flowRAF=null;}
+    showRisk=(i===0);                                  // 'Low risk ↔ High risk' only on the Liability step
     if(i<4)live.classList.remove('live');
     if(i===0)set({eff:0,freq:0,showLabels:false,showResult:false});
     else if(i===1)set({eff:0,freq:0,showLabels:true,showResult:false});
     else if(i===2)set({eff:2.2,freq:0.6,showLabels:true,showResult:true});
     else if(i===3)set({eff:-2.2,freq:0.6,showLabels:true,showResult:true});
-    else if(i===4){live.classList.add('live');showLabels=true;showResult=true;compute();}
+    else if(i===4){live.classList.add('live');showLabels=true;showResult=true;
+      dispEff=eff;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
     if(sb!==was)resize();}
   labels();resize();return{step,resize,render:compute};
 })();
@@ -575,9 +666,10 @@ function alignCards(){const desktop=window.innerWidth>820;
     document.querySelectorAll('#'+steps+' .step').forEach(step=>{
       const card=step.querySelector('.card');
       if(!desktop||!g||!c||!card){step.style.minHeight='';step.style.paddingTop='';step.style.alignItems='';return;}
-      const ch=card.getBoundingClientRect().height,off=(cr.top-gr.top)+cr.height/2,pad=Math.max(off-ch/2,0);
-      step.style.alignItems='flex-start';step.style.paddingTop=pad+'px';
-      step.style.minHeight=Math.max(pad+ch+40,window.innerHeight*1.12)+'px';});});}
+      const z=ZOOM(),ch=card.getBoundingClientRect().height,off=(cr.top-gr.top)+cr.height/2,pad=Math.max(off-ch/2,0);
+      // rects are visual px (incl. zoom); these styles live inside #page and get re-zoomed, so divide
+      step.style.alignItems='flex-start';step.style.paddingTop=(pad/z)+'px';
+      step.style.minHeight=(Math.max(pad+ch+40,window.innerHeight*1.12)/z)+'px';});});}
 function resizeAll(){sims.forEach(s=>s.resize());alignCards();}
 window.addEventListener('resize',resizeAll);
 window.addEventListener('orientationchange',()=>setTimeout(resizeAll,200));
@@ -656,6 +748,29 @@ async function runDemo(){
   demoIdx=0;endDemo();
 }
 if(demoBtn)demoBtn.addEventListener('click',()=>{demoRunning?endDemo():runDemo();});
+
+/* ---------------- elastic snap ----------------
+   when the user stops scrolling near a card's landing, spring to it with a slight
+   overshoot-and-settle (easeOutBack), reusing the demo's stepY() landing positions */
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const c1=1.3,c3=c1+1,back=p=>1+c3*Math.pow(p-1,3)+c1*Math.pow(p-1,2); // easeOutBack — overshoots, then settles
+  let settle=null,snapping=false;
+  function landings(){const out=[];
+    document.querySelectorAll('#stepsC .step,#stepsD .step').forEach(step=>{
+      const card=step.querySelector('.card');if(!card||card.offsetParent===null)return;   // skip hidden cards
+      out.push(stepY(step.closest('#stepsD')?'D':'C',+step.dataset.step));});
+    return out;}
+  function springTo(y){const s=window.scrollY,d=y-s,t0=performance.now(),dur=560;snapping=true;
+    requestAnimationFrame(function f(n){const p=Math.min(1,(n-t0)/dur);
+      window.scrollTo(0,s+d*(reduce?ease(p):back(p)));
+      if(p<1)requestAnimationFrame(f);else snapping=false;});}
+  function onSettle(){if(snapping||demoRunning)return;
+    const y=window.scrollY,prox=window.innerHeight*0.45;let best=null,bd=1e9;
+    for(const ty of landings()){const dd=Math.abs(ty-y);if(dd<bd){bd=dd;best=ty;}}
+    if(best!=null&&bd>2&&bd<prox)springTo(best);}
+  addEventListener('scroll',()=>{if(snapping||demoRunning)return;clearTimeout(settle);settle=setTimeout(onSettle,150);},{passive:true});
+})();
 })();
 </script>
   <script data-goatcounter="https://n-i-k.goatcounter.com/count"
