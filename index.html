@@ -63,8 +63,12 @@
     -webkit-transform:translateZ(0);transform:translateZ(0)}
   .note{font-size:11px;color:var(--muted);font-style:italic;margin:2px 0 0}
 
-  .result{display:none}
-  .result.show{display:block}
+  /* toggled panels slide/grow into view (height via grid-rows 0fr→1fr) so the centered stack
+     re-centers smoothly and the plot glides up, instead of the panel popping in */
+  .result,.controls,.betaread{display:grid;grid-template-rows:0fr;opacity:0;
+    transition:grid-template-rows .55s ease,opacity .45s ease}
+  .result.show,.betaread.show,.controls.live{grid-template-rows:1fr;opacity:1}
+  .reveal-in{overflow:hidden;min-height:0}
   .orrow{display:flex;align-items:baseline;gap:14px;border-top:2px solid var(--ink);padding-top:8px;margin-top:4px}
   .orlabel{font-family:var(--sans);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .orval{font-family:var(--sans);font-weight:900;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
@@ -79,9 +83,8 @@
   td.hot{background:rgba(211,155,31,.18)}
 
   /* controls revealed in sandbox */
-  .controls{font-family:var(--sans);display:none;
-    border-top:1px dashed var(--grey);padding-top:12px;margin-top:4px}
-  .controls.live{display:block}
+  .controls{font-family:var(--sans)}
+  .controls .reveal-in{border-top:1px dashed var(--grey);padding-top:12px}
   .ctl-intro{margin:2px 0 16px}
   .ctl-kick{display:block;font-family:var(--sans);font-weight:900;font-size:19px;color:var(--ink);letter-spacing:-.01em;line-height:1}
   .ctl-line{display:block;font-family:var(--serif);font-size:13.5px;color:var(--muted);line-height:1.4;margin-top:4px}
@@ -114,8 +117,7 @@
   .arch[data-on="1"]{background:var(--ink);color:var(--paper)}
 
   /* dich beta readout */
-  .betaread{display:none;border-top:2px solid var(--ink);padding-top:8px;margin-top:4px}
-  .betaread.show{display:block}
+  .betaread .reveal-in{border-top:2px solid var(--ink);padding-top:8px}
   .focusmini{font-family:var(--serif);font-size:13px;line-height:1.4;margin:0 0 6px}
   .betabig{font-family:var(--sans);font-weight:900;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;margin:0;transition:opacity .25s,color .25s}
   .betabig.ns{opacity:.4}
@@ -123,7 +125,7 @@
   .betasub{font-size:12.5px;color:var(--muted);margin-top:2px}
 
   /* steps */
-  .steps{padding:8vh 0;position:relative;z-index:1}
+  .steps{padding:8vh 0;position:relative;z-index:6}   /* cards ride above the sticky plot (graphic is z-index:5 on mobile) */
   .step{min-height:88vh;display:flex;align-items:center}
   .card{font-size:clamp(17px,1.9vw,21px);line-height:1.55;border-left:3px solid var(--rule);
     padding:18px 22px;background:var(--paper);box-shadow:0 2px 22px rgba(0,0,0,.07);
@@ -150,10 +152,10 @@
   .outro .cite-body a{color:var(--ink);text-decoration:underline}
 
   @media(min-width:821px){
-    #page{zoom:1.3}                       /* literal 130% on desktop; JS divides viewport math by this */
-    /* pull the plot + first card up close to the header, trimming the empty lead-in.
-       100vh is scaled by zoom, so shrink it back so the sticky plot still fits one screen. */
-    .graphic{justify-content:flex-start;padding-top:clamp(10px,4vh,56px);height:calc(100vh / 1.3)}
+    #page{zoom:var(--z,1.3)}              /* ~130% desktop; JS lowers --z on narrow windows so the 1080px layout never overflows */
+    /* keep the whole left stack vertically centred: as the table/forest then sliders appear below
+       the plot, the block re-centres and the plot rises. 100vh is scaled by zoom, so shrink it back. */
+    .graphic{justify-content:center;height:calc(100vh / var(--z,1.3))}
     .steps{padding-top:0}
     .scrolly .step[data-step="0"]{min-height:62vh}
     /* outro: preprint + citation fill the space to the right of the paragraph */
@@ -166,12 +168,12 @@
     .scrolly{grid-template-columns:1fr;gap:0}
     .graphic{position:-webkit-sticky;position:sticky;top:0;height:auto;background:var(--paper);z-index:5;
       padding:10px 0 12px;border-bottom:1px solid var(--grey-soft)}
-    .step{min-height:74vh}
+    .step{min-height:calc(100vh + 220px)}   /* viewport + card → only one card on screen at a time */
     .card{box-shadow:0 2px 22px rgba(0,0,0,.12)}
     .scrolly .step[data-step="4"] .card{display:none}
     /* reserve a stable height (= the tallest state, measured at mobile width) so toggling effect
        (no-effect vs pathogenic/protective) doesn't resize the sticky graphic and shift the page */
-    .betaread{min-height:112px}
+    .betaread .reveal-in{min-height:112px}
   }
 </style>
 </head>
@@ -203,7 +205,7 @@
     <p class="note">Illustrative simulation — synthetic data, not real measurements.</p>
 
     <div class="result" id="resultC">
-      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+      <div class="reveal-in" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
         <table class="grid2x2">
           <caption id="captC" style="font-family:var(--sans);font-weight:700;font-size:12px;text-align:left;margin-bottom:4px"></caption>
           <thead><tr><th></th><th id="colMisC">Misaligned</th><th>Aligned</th></tr></thead>
@@ -226,6 +228,7 @@
     </div>
 
     <div class="controls" id="ctlC">
+     <div class="reveal-in">
       <div class="ctl-intro"><span class="ctl-kick">Your turn</span><span class="ctl-line">Drag to set the gene's burden effect and how often it is observed.</span></div>
       <div class="ctlrow">
         <div class="ctlhead"><span class="ctllabel">Rare-variant burden effect</span><span class="ctlval" id="betavalC">+0.0 SD</span></div>
@@ -240,6 +243,7 @@
         <button class="arch" data-beta="1.6"  id="a1C">Pathogenic</button>
         <button class="arch" data-beta="-1.6" id="a2C">Protective</button>
       </div>
+     </div>
     </div>
   </div>
 
@@ -267,12 +271,15 @@
     <p class="note">Illustrative simulation — synthetic data, not real measurements.</p>
 
     <div class="betaread" id="betareadD">
+     <div class="reveal-in">
       <p class="focusmini" id="focusD"></p>
       <p class="betabig" id="betabigD">—</p>
       <p class="betasub" id="betasubD"></p>
+     </div>
     </div>
 
     <div class="controls" id="ctlD">
+     <div class="reveal-in">
       <div class="ctl-intro"><span class="ctl-kick">Your turn</span><span class="ctl-line">Slide from protective to pathogenic; set frequency and prevalence.</span></div>
       <div class="ctlrow">
         <div class="ctlhead"><span class="ctllabel">Rare-variant burden effect</span><span class="ctlval" id="effvalD">none</span></div>
@@ -291,6 +298,7 @@
         <button class="arch" data-eff="2.2"  id="a1D">Pathogenic</button>
         <button class="arch" data-eff="-2.2" id="a2D">Protective</button>
       </div>
+     </div>
     </div>
   </div>
 
@@ -322,7 +330,13 @@
 "use strict";
 const N=12000;
 const C={ink:'#16140f',grey:'#b8b4aa',gsoft:'#e6e3da',high:'#c6362f',low:'#2f6f9e',gold:'#d39b1f',muted:'#6e6a60',rule:'#e3120b',paperc:'#fbfaf6'};
-const ZOOM=()=>window.innerWidth>820?1.3:1;   // matches #page{zoom:1.3} on desktop; rects/sizes set as CSS px get re-scaled, so divide
+let zoomFactor=window.innerWidth>820?1.3:1;
+const ZOOM=()=>zoomFactor;                     // current #page zoom; rects/sizes set as CSS px get re-scaled, so divide
+function applyZoom(){const desktop=window.innerWidth>820;
+  // full 1.3 when the window can fit the zoomed 1080px layout, scaled down on narrower desktops to avoid overflow
+  zoomFactor=desktop?Math.min(1.3,window.innerWidth/1100):1;
+  document.documentElement.style.setProperty('--z',zoomFactor);}
+applyZoom();
 // fixed seed → identical population every reload (mulberry32)
 let _seed=0x00bada55;
 function rng(){_seed=_seed+0x6d2b79f5|0;let t=Math.imul(_seed^_seed>>>15,1|_seed);
@@ -669,8 +683,9 @@ function alignCards(){const desktop=window.innerWidth>820;
       const z=ZOOM(),ch=card.getBoundingClientRect().height,off=(cr.top-gr.top)+cr.height/2,pad=Math.max(off-ch/2,0);
       // rects are visual px (incl. zoom); these styles live inside #page and get re-zoomed, so divide
       step.style.alignItems='flex-start';step.style.paddingTop=(pad/z)+'px';
-      step.style.minHeight=(Math.max(pad+ch+40,window.innerHeight*1.12)/z)+'px';});});}
-function resizeAll(){sims.forEach(s=>s.resize());alignCards();}
+      // step ≈ viewport + card, so the gap between one card and the next is a full viewport → only one card on screen at a time
+      step.style.minHeight=(Math.max(pad+ch+40,window.innerHeight+ch+40)/z)+'px';});});}
+function resizeAll(){applyZoom();sims.forEach(s=>s.resize());alignCards();}
 window.addEventListener('resize',resizeAll);
 window.addEventListener('orientationchange',()=>setTimeout(resizeAll,200));
 window.addEventListener('load',resizeAll);
@@ -706,7 +721,8 @@ function stepY(which,s){const stepEl=document.querySelector('#steps'+which+' .st
     target=Math.min(gH+(window.innerHeight-gH)/2,window.innerHeight-rect.height/2-12);}
   return rect.top+window.scrollY-(target-rect.height/2);}
 async function goStep(which,s,dur){const sim=which==='C'?Cont:Dich;sim.step(s);
-  await scrollToY(stepY(which,s),dur);if(!stopFlag)sim.step(s);}
+  await scrollToY(stepY(which,s),dur);if(stopFlag)return;sim.step(s);
+  await scrollToY(stepY(which,s),320);}   // panels have finished revealing → settle onto the risen plot
 function userInterrupt(){if(demoRunning)endDemo();}
 function endDemo(){demoRunning=false;stopFlag=true;demoGen++;
   demoBtn.textContent=(demoIdx>0&&demoIdx<demoSteps.length)?'▶ Resume':'▶ Demo';
@@ -748,29 +764,6 @@ async function runDemo(){
   demoIdx=0;endDemo();
 }
 if(demoBtn)demoBtn.addEventListener('click',()=>{demoRunning?endDemo():runDemo();});
-
-/* ---------------- elastic snap ----------------
-   when the user stops scrolling near a card's landing, spring to it with a slight
-   overshoot-and-settle (easeOutBack), reusing the demo's stepY() landing positions */
-(function(){
-  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
-  const c1=1.3,c3=c1+1,back=p=>1+c3*Math.pow(p-1,3)+c1*Math.pow(p-1,2); // easeOutBack — overshoots, then settles
-  let settle=null,snapping=false;
-  function landings(){const out=[];
-    document.querySelectorAll('#stepsC .step,#stepsD .step').forEach(step=>{
-      const card=step.querySelector('.card');if(!card||card.offsetParent===null)return;   // skip hidden cards
-      out.push(stepY(step.closest('#stepsD')?'D':'C',+step.dataset.step));});
-    return out;}
-  function springTo(y){const s=window.scrollY,d=y-s,t0=performance.now(),dur=560;snapping=true;
-    requestAnimationFrame(function f(n){const p=Math.min(1,(n-t0)/dur);
-      window.scrollTo(0,s+d*(reduce?ease(p):back(p)));
-      if(p<1)requestAnimationFrame(f);else snapping=false;});}
-  function onSettle(){if(snapping||demoRunning)return;
-    const y=window.scrollY,prox=window.innerHeight*0.45;let best=null,bd=1e9;
-    for(const ty of landings()){const dd=Math.abs(ty-y);if(dd<bd){bd=dd;best=ty;}}
-    if(best!=null&&bd>2&&bd<prox)springTo(best);}
-  addEventListener('scroll',()=>{if(snapping||demoRunning)return;clearTimeout(settle);settle=setTimeout(onSettle,150);},{passive:true});
-})();
 })();
 </script>
   <script data-goatcounter="https://n-i-k.goatcounter.com/count"
