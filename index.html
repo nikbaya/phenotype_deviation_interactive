@@ -125,8 +125,9 @@
   .betasub{font-size:12.5px;color:var(--muted);margin-top:2px}
 
   /* steps */
-  .steps{padding:8vh 0;position:relative;z-index:6}   /* cards ride above the sticky plot (graphic is z-index:5 on mobile) */
+  .steps{padding:8vh 0;position:relative;z-index:6;pointer-events:none}   /* cards ride above the sticky plot (graphic is z-index:5 on mobile); empty step area must pass clicks through to the sliders in the graphic beneath */
   .step{min-height:88vh;display:flex;align-items:center}
+  .card{pointer-events:auto}
   .card{font-size:clamp(17px,1.9vw,21px);line-height:1.55;border-left:3px solid var(--rule);
     padding:18px 22px;background:var(--paper);box-shadow:0 2px 22px rgba(0,0,0,.07);
     position:relative;z-index:2}
