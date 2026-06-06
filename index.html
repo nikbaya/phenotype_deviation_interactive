@@ -393,16 +393,17 @@ const Cont=(function(){
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
   function resize(){const d=fitCanvas(cv,ctx,640/440,(sb&&window.innerWidth<=820)?0.30:0);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
-  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,dispBeta=0,flowRAF=null;
+  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,dispBeta=0,flowRAF=null,colorStage=0;
   const bloomAmt=new Float32Array(N);   // sandbox: per-dot carrier-ness, eased for the live frequency bloom
   const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const clamp=(v,a,b)=>v<a?a:v>b?b:v,easeOut=p=>1-Math.pow(1-p,3);
   const hashFrac=i=>((Math.imul(i^0x9e3779b9,2654435761))>>>0)/4294967296; // deterministic per-dot [0,1)
   const BLOOM_STAG=3200,BLOOM_RISE=1700,BLOOM_FADE=650; // staggered grow-in; sign fades in once all have grown
   function frame(){ctx.clearRect(0,0,W,H);
-    ctx.beginPath();
-    ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();
-    ctx.fillStyle='rgba(184,180,170,.22)';ctx.fill();
+    if(colorStage>=1){                              // aligned band only appears once aligned individuals are mentioned (step 1+)
+      ctx.beginPath();
+      ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();
+      ctx.fillStyle='rgba(184,180,170,.22)';ctx.fill();}
     if(pulse==='aligned'){ctx.save();
       ctx.beginPath();ctx.moveTo(sx(-XR),sy(-XR+1));ctx.lineTo(sx(XR),sy(XR+1));ctx.lineTo(sx(XR),sy(XR-1));ctx.lineTo(sx(-XR),sy(-XR-1));ctx.closePath();ctx.clip();
       if(reduceMotion){ctx.fillStyle='rgba(205,203,196,.5)';ctx.fillRect(0,0,W,H);}
@@ -422,7 +423,12 @@ const Cont=(function(){
       ctx.fillStyle=C.high;ctx.fillText('HIGHER than expected',PAD.l+8,PAD.t+13);
       ctx.textAlign='right';ctx.fillStyle=C.low;ctx.fillText('LOWER than expected',PAD.l+pW-8,PAD.t+pH-7);
       ctx.textAlign='left';}}
-  const col=r=>r>2?C.high:r<-2?C.low:Math.abs(r)<1?'rgba(120,116,106,.5)':'rgba(120,116,106,.2)';
+  // dots reveal progressively: stage 0 a single neutral tone (no highlight), stage 1 picks out the aligned
+  // diagonal core, stage 2+ colours the misaligned tails red/blue
+  const col=r=>{
+    if(colorStage===0)return 'rgba(120,116,106,.42)';
+    if(colorStage===1)return Math.abs(r)<1?'rgba(60,57,50,.7)':'rgba(120,116,106,.18)';
+    return r>2?C.high:r<-2?C.low:Math.abs(r)<1?'rgba(120,116,106,.5)':'rgba(120,116,106,.2)';};
   // soft glow rasterised on an offscreen layer with 'lighten' so overlapping halos take the
   // max rather than stacking to full intensity, then composited once at low opacity
   let glowCv=null,glowCtx=null;
@@ -523,6 +529,7 @@ const Cont=(function(){
     freq=('freq'in o)?o.freq/100:+fE.value/100;          // honor exact 0 (slider min is 0.05, so it would clamp)
     if('showTails'in o)showTails=o.showTails;if('showResult'in o)showResult=o.showResult;labels();compute();}
   function step(i){const live=document.getElementById('ctlC'),was=sb;sb=(i===4);
+    colorStage=i===0?0:i===1?1:2;   // 0 neutral · 1 aligned highlighted · 2 misaligned tails coloured
     document.getElementById('secC').classList.toggle('sandbox',sb);
     if(!sb&&flowRAF){cancelAnimationFrame(flowRAF);flowRAF=null;}
     if(i<4)live.classList.remove('live');
