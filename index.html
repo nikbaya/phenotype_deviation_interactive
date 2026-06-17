@@ -198,6 +198,22 @@
   </div>
 </div>
 
+<!-- ============ PGS PRIMER ============ -->
+<section class="scrolly" id="secP">
+  <div class="graphic">
+    <p class="charttitle">A polygenic score, built from common variants</p>
+    <p class="chartsub">Each common variant adds a small up or down effect; together they sum to one score.</p>
+    <canvas id="helixP" width="640" height="380"></canvas>
+    <p class="note">Illustrative simulation — synthetic data, not real measurements.</p>
+  </div>
+
+  <div class="steps" id="stepsP">
+    <div class="step" data-step="0"><div class="card"><span class="stepkick">Common DNA</span>Your genome carries millions of <b>common variants</b> — small DNA differences shared across people.</div></div>
+    <div class="step" data-step="1"><div class="card"><span class="stepkick">Small effects</span>Each one nudges a trait a little — some <span style="color:var(--high)">up</span>, some <span style="color:var(--low)">down</span>. Alone, the effect is tiny.</div></div>
+    <div class="step" data-step="2"><div class="card"><span class="stepkick">Polygenic score</span>Sum thousands of them and you get a <b>polygenic score</b> — a single prediction for the trait, the forecast you'll see next.</div></div>
+  </div>
+</section>
+
 <!-- ============ CONTINUOUS ============ -->
 <section class="scrolly" id="secC">
   <div class="graphic">
@@ -674,16 +690,78 @@ const Dich=(function(){
   labels();resize();return{step,resize,render:compute};
 })();
 
+/* ---------------- PGS PRIMER ---------------- */
+const Primer=(function(){
+  const cv=document.getElementById('helixP'),ctx=cv.getContext('2d');
+  const PAD={l:30,r:30,t:28,b:30};
+  let W=640,H=380,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
+  const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v,easeOut=p=>1-Math.pow(1-p,3),easeIO=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  const RG_HI='198,54,47',RG_LO='47,111,158';                 // C.high / C.low as rgb
+  // fixed common-variant effects (net positive) laid out along the helix; deterministic across reloads
+  const EFF=[1.0,-0.6,1.4,0.5,-1.0,0.8,-0.4,1.2,0.7,-0.5,1.1],NV=EFF.length;
+  const STAG=120,RISE=520,MERGE=900;                          // stage-1 stagger/grow, stage-2 merge
+  let stage=0,tStart=0,raf=null;
+  function resize(){const d=fitCanvas(cv,ctx,640/380,window.innerWidth<=820?0.34:0);
+    W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
+  function vArrow(x,baseY,len,rgb,a,lw,hl){                   // signed len: +up / -down; paper halo then colour
+    if(a<=0.02||Math.abs(len)<1)return;
+    const tipY=baseY-len,s=len>0?1:-1;
+    ctx.save();ctx.globalAlpha=a;ctx.lineCap='round';ctx.lineJoin='round';
+    for(let pass=0;pass<2;pass++){ctx.strokeStyle=pass?'rgba('+rgb+',0.95)':C.paperc;ctx.lineWidth=pass?lw:lw+3;
+      ctx.beginPath();ctx.moveTo(x,baseY);ctx.lineTo(x,tipY);
+      ctx.moveTo(x-hl,tipY+hl*s);ctx.lineTo(x,tipY);ctx.lineTo(x+hl,tipY+hl*s);ctx.stroke();}
+    ctx.restore();}
+  function label(txt,x,y,a){ctx.save();ctx.globalAlpha=a;ctx.font='700 12px Archivo,sans-serif';ctx.textAlign='center';
+    ctx.lineWidth=3;ctx.strokeStyle=C.paperc;ctx.strokeText(txt,x,y);ctx.fillStyle=C.ink;ctx.fillText(txt,x,y);ctx.restore();}
+  function compute(){const now=performance.now();ctx.clearRect(0,0,W,H);
+    const hx0=PAD.l+6,hx1=PAD.l+pW*0.60,span=hx1-hx0,cy=PAD.t+pH*0.50,amp=Math.min(pH*0.15,34);
+    const k=3*2*Math.PI/span,phase=0.6;          // fixed helix phase (no idle spin → no runaway rAF when parked)
+    // helix: two phase-offset strands + rungs
+    ctx.lineCap='round';
+    for(let strand=0;strand<2;strand++){ctx.beginPath();
+      for(let x=hx0;x<=hx1;x+=4){const y=cy+amp*Math.sin(k*(x-hx0)+phase+strand*Math.PI);x===hx0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+      ctx.strokeStyle=strand?'rgba(110,106,96,.5)':'rgba(110,106,96,.8)';ctx.lineWidth=2.4;ctx.stroke();}
+    ctx.strokeStyle='rgba(150,146,136,.45)';ctx.lineWidth=1.4;
+    for(let x=hx0+span*0.04;x<hx1;x+=span/16){const y1=cy+amp*Math.sin(k*(x-hx0)+phase),y2=cy+amp*Math.sin(k*(x-hx0)+phase+Math.PI);
+      ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();}
+    label('Common variants',(hx0+hx1)/2,PAD.t+pH+12,1);
+    const UNIT=Math.min(pH*0.13,32),vx=i=>hx0+span*(0.10+0.80*(i+0.5)/NV);
+    const bx=PAD.l+pW*0.85,bBaseY=PAD.t+pH*0.84,t=now-tStart;
+    // small effect arrows (stage 1: reveal staggered · stage 2: fly to the merge point and fade)
+    if(stage>=1)for(let i=0;i<NV;i++){const dir=EFF[i]>0?1:-1,rgb=dir>0?RG_HI:RG_LO;
+      let x=vx(i),y=cy,a=1,mag=Math.abs(EFF[i])*UNIT;
+      if(stage===1)mag*=reduceMotion?1:easeOut(clamp((t-i*STAG)/RISE,0,1));
+      else{const q=reduceMotion?1:easeIO(clamp(t/MERGE,0,1));x+=(bx-x)*q;y+=(bBaseY-y)*q;a=1-q;}
+      if(a>0.02){ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgb('+rgb+')';
+        ctx.beginPath();ctx.arc(x,y,2,0,6.2832);ctx.fill();ctx.restore();
+        vArrow(x,y,dir*mag,rgb,a,2.2,5);}}
+    // merged "polygenic score" arrow (stage 2)
+    if(stage>=2){const q=reduceMotion?1:easeOut(clamp(t/MERGE,0,1));
+      const bob=reduceMotion?0:Math.sin(now/600)*2*Math.exp(-Math.max(0,t-MERGE)/700);
+      vArrow(bx,bBaseY+bob,pH*0.62*q,RG_HI,1,4.5,9);
+      label('Polygenic score',bx,bBaseY+18,reduceMotion?1:easeOut(clamp((t-MERGE*0.5)/400,0,1)));}}
+  function tick(){compute();const t=performance.now()-tStart;
+    let busy=stage===1?t<NV*STAG+RISE:stage===2?t<MERGE+1700:false;
+    raf=(busy&&!reduceMotion)?requestAnimationFrame(tick):null;}
+  function step(i){stage=clamp(i,0,2);tStart=performance.now();
+    if(raf){cancelAnimationFrame(raf);raf=null;}
+    if(reduceMotion){compute();return;}
+    raf=requestAnimationFrame(tick);}
+  resize();return{step,resize,render:compute};
+})();
+
+makeScroller('#stepsP .step',i=>Primer.step(i));
 makeScroller('#stepsC .step',i=>Cont.step(i));
 makeScroller('#stepsD .step',i=>Dich.step(i));
-Cont.step(0);Dich.step(0);
+Primer.step(0);Cont.step(0);Dich.step(0);
 
-const sims=[Cont,Dich];
+const sims=[Primer,Cont,Dich];
 // desktop: centre every card on the canvas via top-padding, and make each step tall enough that
 // the next card stays off-screen while its own card sits beside the plot — and so the sticky plot
 // stays pinned through the final (sandbox) step instead of releasing at the bottom of the column
 function alignCards(){const desktop=window.innerWidth>820;
-  [['secC','stepsC'],['secD','stepsD']].forEach(([sec,steps])=>{
+  [['secP','stepsP'],['secC','stepsC'],['secD','stepsD']].forEach(([sec,steps])=>{
     const g=document.querySelector('#'+sec+' .graphic'),c=g&&g.querySelector('canvas');
     const gr=g&&g.getBoundingClientRect(),cr=c&&c.getBoundingClientRect();
     document.querySelectorAll('#'+steps+' .step').forEach(step=>{
@@ -699,7 +777,7 @@ window.addEventListener('resize',resizeAll);
 window.addEventListener('orientationchange',()=>setTimeout(resizeAll,200));
 window.addEventListener('load',resizeAll);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(resizeAll);
-['scatterC','scatterD'].forEach((id,k)=>{const el=document.getElementById(id);
+['helixP','scatterC','scatterD'].forEach((id,k)=>{const el=document.getElementById(id);
   new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)sims[k].render();}),{threshold:0.04}).observe(el);});
 // Safari: redraw after layout/compositing settles
 requestAnimationFrame(()=>requestAnimationFrame(resizeAll));
@@ -729,7 +807,7 @@ function stepY(which,s){const stepEl=document.querySelector('#steps'+which+' .st
     const gH=g?g.getBoundingClientRect().height:0;
     target=Math.min(gH+(window.innerHeight-gH)/2,window.innerHeight-rect.height/2-12);}
   return rect.top+window.scrollY-(target-rect.height/2);}
-async function goStep(which,s,dur){const sim=which==='C'?Cont:Dich;sim.step(s);
+async function goStep(which,s,dur){const sim={C:Cont,D:Dich,P:Primer}[which];sim.step(s);
   await scrollToY(stepY(which,s),dur);if(stopFlag)return;sim.step(s);
   await scrollToY(stepY(which,s),320);}   // panels have finished revealing → settle onto the risen plot
 function userInterrupt(){if(demoRunning)endDemo();}
@@ -740,6 +818,9 @@ function endDemo(){demoRunning=false;stopFlag=true;demoGen++;
 // the demo as discrete segments so it can pause and resume from the same place
 const demoSteps=[
   async()=>{await scrollToY(0,700);await wait(2200);},
+  async()=>{await goStep('P',0,850);await wait(4200);},
+  async()=>{await goStep('P',1,850);await wait(5200);},
+  async()=>{await goStep('P',2,850);await wait(5200);},
   async()=>{await goStep('C',0,850);await wait(5800);},
   async()=>{await goStep('C',1,850);await wait(5800);},
   async()=>{await goStep('C',2,850);await wait(6200);},
