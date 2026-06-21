@@ -275,7 +275,7 @@
 </section>
 
 <!-- ============ DICHOTOMOUS ============ -->
-<div class="sectionhead"><div class="bar">
+<div class="sectionhead" id="headD"><div class="bar">
   <div class="kicker" style="color:var(--ink)">Part two · Disease, and the liability threshold</div>
   <h2>Crossing the line</h2>
   <p class="lede">For a disease, the same idea runs through a threshold. Risks add up to a hidden “liability”; cross the line and you are diagnosed.</p>
@@ -448,19 +448,25 @@ const Cont=(function(){
     return r>2?C.high:r<-2?C.low:Math.abs(r)<1?'rgba(120,116,106,.5)':'rgba(120,116,106,.2)';};
   // soft glow rasterised on an offscreen layer with 'lighten' so overlapping halos take the
   // max rather than stacking to full intensity, then composited once at low opacity
-  let glowCv=null,glowCtx=null;
+  let glowCv=null,glowCtx=null,glowSprites=null;
+  // one radial-gradient halo per colour, baked once at full alpha; per point we just drawImage it scaled
+  // (the rad wave) at the right globalAlpha (the loc wave) instead of rebuilding a gradient every point/frame
+  function glowSprite(rgb){const R=32,sp=document.createElement('canvas');sp.width=sp.height=R*2;
+    const c=sp.getContext('2d'),g=c.createRadialGradient(R,R,0,R,R,R);
+    g.addColorStop(0,'rgba('+rgb+',1)');g.addColorStop(1,'rgba('+rgb+',0)');
+    c.fillStyle=g;c.fillRect(0,0,R*2,R*2);return sp;}
   function drawGlow(pts){if(!pts.length)return;
     if(!glowCv){glowCv=document.createElement('canvas');glowCtx=glowCv.getContext('2d');}
+    if(!glowSprites)glowSprites=[glowSprite('47,111,158'),glowSprite('198,54,47')]; // [low/blue, high/red]
     if(glowCv.width!==cv.width||glowCv.height!==cv.height){glowCv.width=cv.width;glowCv.height=cv.height;}
     const dpr=W?cv.width/W:1;glowCtx.setTransform(dpr,0,0,dpr,0,0);
     glowCtx.clearRect(0,0,W,H);glowCtx.globalCompositeOperation='lighten';
     const now=performance.now();
-    for(let k=0;k<pts.length;k+=3){const px=pts[k],py=pts[k+1],rgb=pts[k+2]?'198,54,47':'47,111,158';
+    for(let k=0;k<pts.length;k+=3){const px=pts[k],py=pts[k+1],sp=glowSprites[pts[k+2]?1:0];
       const loc=reduceMotion?0.7:(0.5-0.5*Math.cos(now/420-px*0.020-py*0.012)); // wave sweeps across the tail
       const rad=2.2+loc*3.2;
-      const g=glowCtx.createRadialGradient(px,py,0,px,py,rad);
-      g.addColorStop(0,'rgba('+rgb+','+(0.35+loc*0.5).toFixed(3)+')');g.addColorStop(1,'rgba('+rgb+',0)');
-      glowCtx.fillStyle=g;glowCtx.beginPath();glowCtx.arc(px,py,rad,0,6.2832);glowCtx.fill();}
+      glowCtx.globalAlpha=0.35+loc*0.5;glowCtx.drawImage(sp,px-rad,py-rad,rad*2,rad*2);}
+    glowCtx.globalAlpha=1;
     ctx.save();ctx.globalAlpha=0.6;ctx.drawImage(glowCv,0,0,W,H);ctx.restore();}
   // "Rare-variant burden" sign — fades in (with a small upward drift) once the flowers have grown
   function drawBurdenSign(a){const e=easeOut(a),cx=sx(0),ay=PAD.t+pH*0.30+(1-e)*8;
@@ -475,6 +481,10 @@ const Cont=(function(){
   function compute(){const target=beta<0?'low':'high';let a=0,b=0,c=0,d=0;const obs=[];frame();
     ctx.save();ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
     const now=performance.now(),glowPts=[];
+    // batch the static (non-carrier) dots by fill colour: collect arcs into one Path2D per colour and fill once
+    const dots=new Map();                              // colour -> {p:Path2D, r:radius}  (a colour maps to one radius per frame)
+    const plot=(px,py,color,r)=>{let e=dots.get(color);if(!e){e={p:new Path2D(),r};dots.set(color,e);}
+      e.p.moveTo(px+r,py);e.p.arc(px,py,r,0,6.2832);};
     for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq;
       let bEff=beta;                                   // during bloom each carrier's burden ramps in, so counts/OR climb live
       if(isObs&&pulse==='bloom'&&!reduceMotion)bEff=beta*easeOut(clamp((now-bloomStart-hashFrac(i)*BLOOM_STAG)/BLOOM_RISE,0,1));
@@ -484,9 +494,9 @@ const Cont=(function(){
       else{if(inTail)c++;else if(al)d++;
         if(sb&&bloomAmt[i]>0.02)obs.push(i);          // still easing back to baseline → keep drawing it as a fading carrier
         else{const px=sx(pgs[i]),py=sy(y);
-          if(pulse==='misaligned'&&(r>2||r<-2)){glowPts.push(px,py,r>2?1:0);
-            ctx.fillStyle=r>2?C.high:C.low;ctx.beginPath();ctx.arc(px,py,2,0,6.2832);ctx.fill();}
-          else{ctx.fillStyle=col(r);ctx.beginPath();ctx.arc(px,py,1.6,0,6.2832);ctx.fill();}}}}
+          if(pulse==='misaligned'&&(r>2||r<-2)){glowPts.push(px,py,r>2?1:0);plot(px,py,r>2?C.high:C.low,2);}
+          else plot(px,py,col(r),1.6);}}}
+    dots.forEach((e,color)=>{ctx.fillStyle=color;ctx.fill(e.p);});
     drawGlow(glowPts);
     // gold "burden carriers": rise from their zero-effect spot into the tail
     for(const i of obs){const baseY=pgs[i]+resid[i];
@@ -606,11 +616,15 @@ const Dich=(function(){
   function compute(){const T=thr(prev),focus=eff>0?'case':eff<0?'control':'case';frame(T);
     ctx.save();ctx.beginPath();ctx.rect(PAD.l,PAD.t,pW,pH);ctx.clip();
     const fp=[],mem=new Uint8Array(N),ob=new Uint8Array(N);
+    // batch the static (non-carrier) dots into one Path2D per colour (case red / control blue) and fill once
+    const caseP=new Path2D(),ctrlP=new Path2D();
     for(let i=0;i<N;i++){const isObs=freq>0&&vu[i]<freq;ob[i]=isObs?1:0;
       const L=baseLiab[i]+(isObs?eff:0),isCase=L>T,inF=focus==='case'?isCase:!isCase;mem[i]=inF?1:0;
       if(inF)fp.push(pgs[i]);
-      if(!isObs&&!(sb&&bloomAmt[i]>0.02)){ctx.fillStyle=isCase?'rgba(198,54,47,.5)':'rgba(47,111,158,.45)';
-        ctx.beginPath();ctx.arc(sx(pgs[i]),sy(L),1.6,0,6.2832);ctx.fill();}}
+      if(!isObs&&!(sb&&bloomAmt[i]>0.02)){const px=sx(pgs[i]),py=sy(L),p=isCase?caseP:ctrlP;
+        p.moveTo(px+1.6,py);p.arc(px,py,1.6,0,6.2832);}}
+    ctx.fillStyle='rgba(198,54,47,.5)';ctx.fill(caseP);
+    ctx.fillStyle='rgba(47,111,158,.45)';ctx.fill(ctrlP);
     thline(T);
     let sO=0,nO=0,sN=0,nN=0,qO=0,qN=0;
     for(let i=0;i<N;i++){if(!mem[i])continue;if(ob[i]){sO+=pgs[i];qO+=pgs[i]*pgs[i];nO++;}else{sN+=pgs[i];qN+=pgs[i]*pgs[i];nN++;}}
@@ -701,7 +715,7 @@ const Primer=(function(){
   // fixed common-variant effects (net positive) laid out along the helix; deterministic across reloads
   const EFF=[1.0,-0.6,1.4,0.5,-1.0,0.8,-0.4,1.2,0.7,-0.5,1.1],NV=EFF.length;
   const STAG=120,RISE=520,MERGE=900;                          // stage-1 stagger/grow, stage-2 merge
-  let stage=0,tStart=0,raf=null;
+  let stage=0,tStart=0,raf=null,shown=-1;
   function resize(){const d=fitCanvas(cv,ctx,640/380,window.innerWidth<=820?0.34:0);
     W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
   function vArrow(x,baseY,len,rgb,a,lw,hl){                   // signed len: +up / -down; paper halo then colour
@@ -744,7 +758,9 @@ const Primer=(function(){
   function tick(){compute();const t=performance.now()-tStart;
     let busy=stage===1?t<NV*STAG+RISE:stage===2?t<MERGE+1700:false;
     raf=(busy&&!reduceMotion)?requestAnimationFrame(tick):null;}
-  function step(i){stage=clamp(i,0,2);tStart=performance.now();
+  function step(i){const s=clamp(i,0,2);
+    if(s===shown){compute();return;}                 // already on this stage → don't restart the one-shot reveal
+    shown=s;stage=s;tStart=performance.now();
     if(raf){cancelAnimationFrame(raf);raf=null;}
     if(reduceMotion){compute();return;}
     raf=requestAnimationFrame(tick);}
@@ -830,6 +846,8 @@ const demoSteps=[
     await tween(bC,3,1600);await wait(1400);await tween(bC,-3,2800);await wait(1400);await tween(bC,1.6,1300);await wait(1600);},
   async()=>{const fC=document.getElementById('freqC');
     await tween(fC,2,1500);await wait(1500);await tween(fC,0.2,1600);await wait(1400);await tween(fC,0.6,1100);await wait(1500);},
+  async()=>{const h=document.getElementById('headD'),r=h.getBoundingClientRect();  // pause on the "Part two" title
+    await scrollToY(Math.max(0,r.top+window.scrollY-(window.innerHeight-r.height)/2),900);await wait(3600);},
   async()=>{await goStep('D',0,850);await wait(6200);},
   async()=>{await goStep('D',1,850);await wait(6200);},
   async()=>{await goStep('D',2,850);await wait(7200);},
