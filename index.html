@@ -429,8 +429,9 @@ const Cont=(function(){
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
   function resize(){const d=fitCanvas(cv,ctx,640/440);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
-  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,dispBeta=0,flowRAF=null,colorStage=0;
+  let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,flowRAF=null,colorStage=0;
   const bloomAmt=new Float32Array(N);   // sandbox: per-dot carrier-ness, eased for the live frequency bloom
+  const dispOff=new Float32Array(N);    // sandbox: per-dot displayed burden offset, eased with a slight per-dot stagger
   const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const clamp=(v,a,b)=>v<a?a:v>b?b:v,easeOut=p=>1-Math.pow(1-p,3);
   const hashFrac=i=>((Math.imul(i^0x9e3779b9,2654435761))>>>0)/4294967296; // deterministic per-dot [0,1)
@@ -520,7 +521,7 @@ const Cont=(function(){
     // gold "burden carriers": rise from their zero-effect spot into the tail
     for(const i of obs){const baseY=pgs[i]+resid[i];
       let drawOff;
-      if(sb)drawOff=dispBeta*bloomAmt[i];             // sandbox: effect flow (dispBeta) × frequency bloom (bloomAmt)
+      if(sb)drawOff=dispOff[i]*bloomAmt[i];           // sandbox: per-dot staggered effect (dispOff) × frequency bloom (bloomAmt)
       else if(pulse==='bloom'&&!reduceMotion)drawOff=beta*easeOut(clamp((now-bloomStart-hashFrac(i)*BLOOM_STAG)/BLOOM_RISE,0,1));
       else drawOff=beta;
       const yD=baseY+drawOff,rD=resid[i]+drawOff,ringA=sb?Math.min(1,bloomAmt[i]*1.4):1;
@@ -554,13 +555,16 @@ const Cont=(function(){
     if(p&&!reduceMotion){if(!pulseRAF)pulseRAF=requestAnimationFrame(pulseTick);}
     else{if(pulseRAF){cancelAnimationFrame(pulseRAF);pulseRAF=null;}compute();}}
   // sandbox flow: ease displayed beta toward the slider, and each carrier's bloom toward observed/not
-  function flowTick(){dispBeta+=(beta-dispBeta)*0.2;if(Math.abs(beta-dispBeta)<0.003)dispBeta=beta;
-    let moving=dispBeta!==beta;
+  function flowTick(){let moving=false;
     for(let i=0;i<N;i++){const tgt=(freq>0&&vu[i]<freq)?1:0,cur=bloomAmt[i];
-      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}}
+      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}
+      // ease each carrier's displayed offset toward beta at a slightly different per-dot rate, so the
+      // lollipops rise in a staggered cascade rather than all together
+      const d=dispOff[i];
+      if(d!==beta){let nd=d+(beta-d)*(0.10+0.22*hashFrac(i));if(Math.abs(beta-nd)<0.003)nd=beta;dispOff[i]=nd;if(nd!==beta)moving=true;}}
     compute();
     flowRAF=moving?requestAnimationFrame(flowTick):null;}
-  function startFlow(){if(reduceMotion){dispBeta=beta;for(let i=0;i<N;i++)bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;compute();return;}
+  function startFlow(){if(reduceMotion){for(let i=0;i<N;i++){dispOff[i]=beta;bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;}compute();return;}
     if(!flowRAF)flowRAF=requestAnimationFrame(flowTick);}
   const bE=document.getElementById('betaC'),fE=document.getElementById('freqC');
   function labels(){const bv=+bE.value;document.getElementById('betavalC').textContent=(bv>=0?'+':'')+bv.toFixed(1)+' SD';
@@ -582,7 +586,7 @@ const Cont=(function(){
     else if(i===2)set({beta:0,freq:0,showTails:true,showResult:false});
     else if(i===3)set({beta:1.6,freq:0.6,showTails:true,showResult:true});
     else if(i===4){live.classList.add('live');showTails=true;showResult=true;
-      dispBeta=beta;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
+      for(let k=0;k<N;k++){dispOff[k]=beta;bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;}compute();}  // start matched to step 3's end
     setPulse(i===1?'aligned':i===2?'misaligned':i===3?'bloom':null);}
   labels();resize();return{step,resize,render:compute};
 })();
@@ -598,8 +602,10 @@ const Dich=(function(){
   for(let i=0;i<N;i++)baseLiab[i]=cP*pgs[i]+cE*env[i];
   const sortedBase=Float32Array.from(baseLiab).sort();
   const thr=p=>sortedBase[Math.min(N-1,Math.max(0,Math.floor((1-p)*N)))];
-  let eff=0,freq=0,prev=0.06,showResult=false,showLabels=false,showRisk=false,sb=false,dispEff=0,flowRAF=null;
+  let eff=0,freq=0,prev=0.06,showResult=false,showLabels=false,showRisk=false,sb=false,flowRAF=null;
   const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches,bloomAmt=new Float32Array(N);
+  const dispOff=new Float32Array(N);    // sandbox: per-dot displayed burden offset, eased with a slight per-dot stagger
+  const hashFrac=i=>((Math.imul(i^0x9e3779b9,2654435761))>>>0)/4294967296;   // deterministic per-dot [0,1) for the stagger
   function frame(T){ctx.clearRect(0,0,W,H);
     ctx.strokeStyle=C.ink;ctx.lineWidth=1.4;ctx.beginPath();
     ctx.moveTo(PAD.l,PAD.t);ctx.lineTo(PAD.l,PAD.t+pH);ctx.lineTo(PAD.l+pW,PAD.t+pH);ctx.stroke();
@@ -647,7 +653,7 @@ const Dich=(function(){
     const mO=nO?sO/nO:0,mN=nN?sN/nN:0,beta=mO-mN;
     // observed dots + gold connectors
     for(let i=0;i<N;i++){if(!ob[i]&&!(sb&&bloomAmt[i]>0.02))continue;
-      const off=sb?dispEff*bloomAmt[i]:eff,L=baseLiab[i]+off,isCase=L>T,ringA=sb?Math.min(1,bloomAmt[i]*1.4):1;
+      const off=sb?dispOff[i]*bloomAmt[i]:eff,L=baseLiab[i]+off,isCase=L>T,ringA=sb?Math.min(1,bloomAmt[i]*1.4):1;
       if(off!==0){ctx.globalAlpha=ringA*0.5;ctx.strokeStyle=C.gold;ctx.lineWidth=1.1;
         ctx.beginPath();ctx.moveTo(sx(pgs[i]),sy(baseLiab[i]));ctx.lineTo(sx(pgs[i]),sy(L));ctx.stroke();ctx.globalAlpha=1;}
       ctx.fillStyle=isCase?C.high:C.low;ctx.beginPath();ctx.arc(sx(pgs[i]),sy(L),3.3,0,6.2832);ctx.fill();
@@ -682,13 +688,15 @@ const Dich=(function(){
       bs.innerHTML='PRS shift for people with the burden, within <b>'+grp+'</b><br>90% CI '+lo.toFixed(2)+' to '+hi.toFixed(2)+(sig?' — <b style="color:'+clr+'">significant *</b>':' — not significant (CI crosses 0)');}
     document.getElementById('betareadD').classList.toggle('show',showResult);}
   // sandbox flow: ease displayed effect toward the slider, and each carrier's bloom toward observed/not
-  function flowTick(){dispEff+=(eff-dispEff)*0.2;if(Math.abs(eff-dispEff)<0.003)dispEff=eff;
-    let moving=dispEff!==eff;
+  function flowTick(){let moving=false;
     for(let i=0;i<N;i++){const tgt=(freq>0&&vu[i]<freq)?1:0,cur=bloomAmt[i];
-      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}}
+      if(cur!==tgt){let nx=cur+(tgt-cur)*0.16;if(Math.abs(tgt-nx)<0.004)nx=tgt;bloomAmt[i]=nx;if(nx!==tgt)moving=true;}
+      // staggered per-dot rise toward eff → lollipops cascade instead of moving in lockstep
+      const d=dispOff[i];
+      if(d!==eff){let nd=d+(eff-d)*(0.10+0.22*hashFrac(i));if(Math.abs(eff-nd)<0.003)nd=eff;dispOff[i]=nd;if(nd!==eff)moving=true;}}
     compute();
     flowRAF=moving?requestAnimationFrame(flowTick):null;}
-  function startFlow(){if(reduceMotion){dispEff=eff;for(let i=0;i<N;i++)bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;compute();return;}
+  function startFlow(){if(reduceMotion){for(let i=0;i<N;i++){dispOff[i]=eff;bloomAmt[i]=(freq>0&&vu[i]<freq)?1:0;}compute();return;}
     if(!flowRAF)flowRAF=requestAnimationFrame(flowTick);}
   const eE=document.getElementById('effD'),fE=document.getElementById('freqD'),pE=document.getElementById('prevD');
   function labels(){const ev=+eE.value;
@@ -713,7 +721,7 @@ const Dich=(function(){
     else if(i===2)set({eff:2.2,freq:0.6,showLabels:true,showResult:true});
     else if(i===3)set({eff:-2.2,freq:0.6,showLabels:true,showResult:true});
     else if(i===4){live.classList.add('live');showLabels=true;showResult=true;
-      dispEff=eff;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
+      for(let k=0;k<N;k++){dispOff[k]=eff;bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;}compute();}  // start matched to step 3's end
     }
   labels();resize();return{step,resize,render:compute};
 })();
@@ -781,9 +789,10 @@ const Primer=(function(){
   resize();return{step,resize,render:compute};
 })();
 
-makeScroller('#stepsP .step',i=>Primer.step(i));
-makeScroller('#stepsC .step',i=>Cont.step(i));
-makeScroller('#stepsD .step',i=>Dich.step(i));
+let demoActive=false;   // while the hidden demo runs it drives steps itself; ignore scrollama
+makeScroller('#stepsP .step',i=>{if(!demoActive)Primer.step(i);});
+makeScroller('#stepsC .step',i=>{if(!demoActive)Cont.step(i);});
+makeScroller('#stepsD .step',i=>{if(!demoActive)Dich.step(i);});
 Primer.step(0);Cont.step(0);Dich.step(0);
 
 const sims=[Primer,Cont,Dich];
@@ -828,80 +837,69 @@ if(window.ResizeObserver){const lastW=new WeakMap();
     if(changed)resizeAll();});
   ['secP','secC','secD'].forEach(id=>{const g=document.querySelector('#'+id+' .graphic');if(g)ro.observe(g);});}
 
-// ---------------- guided auto-demo (DISABLED — commented out per request) ----------------
-/*
-let demoRunning=false,stopFlag=false,demoIdx=0,demoGen=0;
-const demoBtn=document.getElementById('demoBtn');
-const wait=ms=>new Promise(r=>setTimeout(r,ms));
-const ease=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
-function scrollToY(y,dur){return new Promise(res=>{const s=window.scrollY,d=y-s,t0=performance.now();
-  function f(n){if(stopFlag)return res();const p=Math.min(1,(n-t0)/dur);window.scrollTo(0,s+d*ease(p));
-    p<1?requestAnimationFrame(f):res();}requestAnimationFrame(f);});}
-function tween(el,to,dur){return new Promise(res=>{const from=parseFloat(el.value),t0=performance.now();
-  function f(n){if(stopFlag)return res();const p=Math.min(1,(n-t0)/dur);
-    el.value=(from+(to-from)*ease(p)).toFixed(2);el.dispatchEvent(new Event('input',{bubbles:true}));
-    p<1?requestAnimationFrame(f):res();}requestAnimationFrame(f);});}
-function stepY(which,s){const stepEl=document.querySelector('#steps'+which+' .step[data-step="'+s+'"]');
-  const card=stepEl.querySelector('.card');
-  const el=(card&&card.offsetParent!==null)?card:stepEl,rect=el.getBoundingClientRect();
-  let target;
-  if(window.innerWidth>820){const g=document.querySelector('#sec'+which+' .graphic'),c=g&&g.querySelector('canvas');
-    if(c){const gr=g.getBoundingClientRect(),cr=c.getBoundingClientRect();target=(cr.top-gr.top)+cr.height/2;} // align card centre with the (pinned) canvas centre
-    else target=window.innerHeight*0.5;}
-  else{const g=document.querySelector('#sec'+which+' .graphic'); // mobile: land below the sticky graphic
-    const gH=g?g.getBoundingClientRect().height:0;
-    target=Math.min(gH+(window.innerHeight-gH)/2,window.innerHeight-rect.height/2-12);}
-  return rect.top+window.scrollY-(target-rect.height/2);}
-async function goStep(which,s,dur){const sim={C:Cont,D:Dich,P:Primer}[which];sim.step(s);
-  await scrollToY(stepY(which,s),dur);if(stopFlag)return;sim.step(s);
-  await scrollToY(stepY(which,s),320);}   // panels have finished revealing → settle onto the risen plot
-function userInterrupt(){if(demoRunning)endDemo();}
-function endDemo(){demoRunning=false;stopFlag=true;demoGen++;
-  demoBtn.textContent=(demoIdx>0&&demoIdx<demoSteps.length)?'▶ Resume':'▶ Demo';
-  demoBtn.classList.remove('running');
-  ['wheel','touchstart','keydown'].forEach(e=>window.removeEventListener(e,userInterrupt));}
-// the demo as discrete segments so it can pause and resume from the same place
-const demoSteps=[
-  async()=>{await scrollToY(0,700);await wait(2200);},
-  async()=>{await goStep('P',0,850);await wait(4200);},
-  async()=>{await goStep('P',1,850);await wait(5200);},
-  async()=>{await goStep('P',2,850);await wait(5200);},
-  async()=>{await goStep('C',0,850);await wait(5800);},
-  async()=>{await goStep('C',1,850);await wait(5800);},
-  async()=>{await goStep('C',2,850);await wait(6200);},
-  async()=>{await goStep('C',3,850);await wait(7600);},
-  async()=>{await goStep('C',4,850);await wait(3200);},
-  async()=>{const bC=document.getElementById('betaC');
-    await tween(bC,3,1600);await wait(1400);await tween(bC,-3,2800);await wait(1400);await tween(bC,1.6,1300);await wait(1600);},
-  async()=>{const fC=document.getElementById('freqC');
-    await tween(fC,2,1500);await wait(1500);await tween(fC,0.2,1600);await wait(1400);await tween(fC,0.6,1100);await wait(1500);},
-  async()=>{const h=document.getElementById('headD'),r=h.getBoundingClientRect();  // pause on the "Part two" title
-    await scrollToY(Math.max(0,r.top+window.scrollY-(window.innerHeight-r.height)/2),900);await wait(3600);},
-  async()=>{await goStep('D',0,850);await wait(6200);},
-  async()=>{await goStep('D',1,850);await wait(6200);},
-  async()=>{await goStep('D',2,850);await wait(7200);},
-  async()=>{await goStep('D',3,850);await wait(7200);},
-  async()=>{await goStep('D',4,850);await wait(3200);},
-  async()=>{const eD=document.getElementById('effD');
-    await tween(eD,3,1800);await wait(1600);await tween(eD,-3,3000);await wait(1600);await tween(eD,2.2,1400);await wait(1600);},
-  async()=>{const fD=document.getElementById('freqD');
-    await tween(fD,2,1500);await wait(1500);await tween(fD,0.6,1200);await wait(1400);},
-  async()=>{const pD=document.getElementById('prevD');
-    await tween(pD,18,1700);await wait(1600);await tween(pD,2,1700);await wait(1600);await tween(pD,6,1200);await wait(1400);},
-  async()=>{await scrollToY(document.body.scrollHeight,1500);await wait(2400);},
-];
-async function runDemo(){
-  demoRunning=true;stopFlag=false;const gen=++demoGen;demoBtn.textContent='■ Stop';demoBtn.classList.add('running');
-  setTimeout(()=>['wheel','touchstart','keydown'].forEach(e=>window.addEventListener(e,userInterrupt,{passive:true})),450);
-  if(demoIdx>=demoSteps.length)demoIdx=0;          // finished → start over
-  for(;demoIdx<demoSteps.length;demoIdx++){
-    await demoSteps[demoIdx]();
-    if(stopFlag||gen!==demoGen)return;             // stopped (keep demoIdx) or superseded by a newer run
+// ---------------- hidden guided demo (for recording a ~30s LinkedIn clip) ----------------
+// Not surfaced in the UI. Trigger any of: append #demo to the URL, press Shift+D, or call
+// playDemo() from the console; stopDemo() (or a second trigger) aborts. While it runs, scrollama
+// step changes are suppressed (demoActive) so the choreography owns the visuals with no double-firing.
+(function(){
+  let running=false,stop=false,gen=0;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const ease=p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;                    // easeInOutCubic — buttery scroll/tweens
+  function scrollToY(y,dur){return new Promise(res=>{const s=window.scrollY,d=y-s,t0=performance.now();
+    if(Math.abs(d)<1||dur<=0){window.scrollTo(0,y);return res();}
+    (function f(n){if(stop)return res();const p=Math.min(1,(n-t0)/dur);window.scrollTo(0,s+d*ease(p));
+      p<1?requestAnimationFrame(f):res();})(performance.now());});}
+  function tween(el,to,dur){return new Promise(res=>{const from=parseFloat(el.value),t0=performance.now();
+    (function f(n){if(stop)return res();const p=Math.min(1,(n-t0)/dur);
+      el.value=(from+(to-from)*ease(p)).toFixed(2);el.dispatchEvent(new Event('input',{bubbles:true}));
+      p<1?requestAnimationFrame(f):res();})(performance.now());});}
+  const setSlider=(el,v)=>{el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));};  // instant set (carriers still bloom in)
+  function stepY(which,s){const stepEl=document.querySelector('#steps'+which+' .step[data-step="'+s+'"]');
+    if(!stepEl)return window.scrollY;const card=stepEl.querySelector('.card');
+    const el=(card&&card.offsetParent!==null)?card:stepEl,rect=el.getBoundingClientRect();let target;
+    if(window.innerWidth>820){const g=document.querySelector('#sec'+which+' .graphic'),c=g&&g.querySelector('canvas');
+      if(c){const gr=g.getBoundingClientRect(),cr=c.getBoundingClientRect();target=(cr.top-gr.top)+cr.height/2;} // centre on the pinned canvas
+      else target=window.innerHeight*0.5;}
+    else{const g=document.querySelector('#sec'+which+' .graphic');const gH=g?g.getBoundingClientRect().height:0;
+      target=Math.min(gH+(window.innerHeight-gH)/2,window.innerHeight-rect.height/2-12);}                        // mobile: below the sticky graphic
+    return rect.top+window.scrollY-(target-rect.height/2);}
+  const SIM={P:Primer,C:Cont,D:Dich};
+  // jump straight into a section's live sandbox (step 4) and frame the canvas — a direct cut between
+  // the two interactive bits, no long scroll through the narrative in between
+  async function toSandbox(which){SIM[which].step(4);
+    window.scrollTo(0,stepY(which,4));await wait(60);
+    window.scrollTo(0,stepY(which,4));await wait(200);}                 // re-frame once the section has pinned
+
+  async function run(){
+    if(running){stop=true;return;}                                     // a second trigger stops it
+    running=true;stop=false;const my=++gen;demoActive=true;
+    const betaC=document.getElementById('betaC'),freqC=document.getElementById('freqC'),
+          effD=document.getElementById('effD'),freqD=document.getElementById('freqD'),prevD=document.getElementById('prevD');
+    const live=()=>!stop&&my===gen;
+    try{
+      Cont.step(0);Dich.step(0);
+      // === Interactive 1 — continuous-trait sandbox ===
+      await toSandbox('C');setSlider(freqC,1);await wait(1600);if(!live())return;   // start with a higher burden frequency → carriers bloom in and are clearly visible
+      await tween(betaC,2.5,1700);await wait(1400);if(!live())return;   // burden pushes carriers into the higher tail; OR climbs
+      await tween(betaC,-2.5,2400);await wait(1400);if(!live())return;  // slide the other way → the lower tail
+      await tween(betaC,1.6,1400);await wait(1100);if(!live())return;   // settle on a clear positive effect
+      await tween(freqC,2,1500);await wait(1300);if(!live())return;     // even more carriers
+      await tween(freqC,0.6,1500);await wait(1200);if(!live())return;   // fewer
+      // === skip directly to Interactive 2 — disease / liability-threshold sandbox ===
+      await toSandbox('D');setSlider(freqD,1);await wait(1600);if(!live())return;   // higher burden frequency here too
+      await tween(effD,2.5,1700);await wait(1400);if(!live())return;    // pathogenic: low-PRS cases cross the line (arrow left)
+      await tween(effD,-2.5,2400);await wait(1400);if(!live())return;   // protective: high-PRS controls held under (arrow flips)
+      await tween(effD,2.2,1300);await wait(1000);if(!live())return;    // settle pathogenic
+      await tween(prevD,18,1600);await wait(1300);if(!live())return;    // raise prevalence → the threshold drops
+      await tween(prevD,6,1500);await wait(1000);
+    }finally{demoActive=false;running=false;}
   }
-  demoIdx=0;endDemo();
-}
-if(demoBtn)demoBtn.addEventListener('click',()=>{demoRunning?endDemo():runDemo();});
-*/
+  window.playDemo=run;window.stopDemo=()=>{stop=true;};
+  window.addEventListener('keydown',e=>{if(e.shiftKey&&(e.key==='D'||e.key==='d')){e.preventDefault();run();}});
+  if(/(^|[?&#])demo\b/.test(location.hash+location.search)){
+    const kick=()=>setTimeout(run,700);                               // let first layout/reveal settle
+    document.readyState==='complete'?kick():window.addEventListener('load',kick);}
+})();
 })();
 </script>
   <script data-goatcounter="https://n-i-k.goatcounter.com/count"
