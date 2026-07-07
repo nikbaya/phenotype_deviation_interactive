@@ -35,6 +35,11 @@
   html,body{margin:0;background:var(--paper);color:var(--ink);
     font-family:var(--serif);-webkit-font-smoothing:antialiased}
   .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+  /* hold the first paint until zoom + canvas sizing + card alignment have run once, so the opening
+     frame is final — no visible reflow/jump (matters for a clean screen recording). JS adds .ready;
+     multiple fallbacks below guarantee it always resolves. */
+  #page{opacity:0}
+  #page.ready{opacity:1;transition:opacity .35s ease}
 
   /* ---- intro / outro ---- */
   .intro{padding:52px 28px 16px;max-width:1080px;margin:0 auto}
@@ -44,6 +49,9 @@
   h1{font-family:var(--sans);font-weight:900;font-size:clamp(30px,5vw,52px);
     line-height:1.0;margin:.18em 0 .14em;letter-spacing:-.015em}
   .standfirst{font-size:clamp(17px,2.1vw,20px);color:var(--muted);max-width:60ch;line-height:1.5}
+  .byline{font-family:var(--sans);font-weight:700;font-size:13px;color:var(--muted);
+    letter-spacing:.02em;margin:16px 0 0}
+  .byline b{color:var(--ink);font-weight:900}
   .scrollcue{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--muted);margin-top:24px;display:flex;align-items:center;gap:8px}
   .scrollcue:after{display:none}
@@ -51,7 +59,8 @@
   .scrollarrow{color:var(--muted);animation:tug 1.7s ease-in-out infinite}
   @keyframes cuepulse{0%,100%{opacity:.5}50%{opacity:1}}
   @keyframes tug{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
-  @media(prefers-reduced-motion:reduce){.scrollcue,.scrollarrow{animation:none}}
+  @media(prefers-reduced-motion:reduce){.scrollcue,.scrollarrow{animation:none}
+    #page.ready{transition:none}}
 
   /* ---- scrollytelling ---- */
   .scrolly{position:relative;max-width:1080px;margin:0 auto;padding:0 28px;
@@ -62,14 +71,22 @@
   .chartsub{font-size:13px;color:var(--muted);margin:0 0 4px;line-height:1.35}
   canvas{display:block;margin:0 auto;max-width:100%;background:#fff;border:1px solid var(--grey-soft);
     -webkit-transform:translateZ(0);transform:translateZ(0)}
+  /* single per-breakpoint sizing knob: the canvas height cap lives in CSS and fitCanvas reads it.
+     Desktop uses 46vh scaled back by --z (like .graphic height) so it renders as 46vh visual at
+     any zoom; mobile values are overridden in the max-width:820px block. */
+  #scatterC,#scatterD,#helixP{max-height:calc(46 * 1vh / var(--z,1.3))}
   .note{font-size:11px;color:var(--muted);font-style:italic;margin:2px 0 0}
 
-  /* toggled panels slide/grow into view (height via grid-rows 0fr→1fr) so the centered stack
-     re-centers smoothly and the plot glides up, instead of the panel popping in */
-  .result,.controls,.betaread{display:grid;grid-template-rows:0fr;opacity:0;
-    transition:grid-template-rows .55s ease,opacity .45s ease}
-  .result.show,.betaread.show,.controls.live{grid-template-rows:1fr;opacity:1}
+  /* desktop: panels are ALWAYS in flow at their natural height; only opacity animates. The
+     centred left stack is therefore a constant height across every step, so the canvas never
+     resizes and never glides when the result/controls appear — they just fade in within the
+     space already reserved for them. (Mobile overrides this to a height collapse below, where
+     the top-aligned graphic lets panels grow beneath the fixed canvas without moving it.) */
+  .result,.controls,.betaread{opacity:0;pointer-events:none;transition:opacity .45s ease}
+  .result.show,.betaread.show,.controls.live{opacity:1;pointer-events:auto}
   .reveal-in{overflow:hidden;min-height:0}
+  /* reserve the tallest betaread state so toggling significance never shifts the stack */
+  .betaread .reveal-in{min-height:120px}
   .orrow{display:flex;align-items:baseline;gap:14px;border-top:2px solid var(--ink);padding-top:8px;margin-top:4px}
   .orlabel{font-family:var(--sans);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .orval{font-family:var(--sans);font-weight:900;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
@@ -89,12 +106,12 @@
   .ctl-intro{margin:2px 0 16px}
   .ctl-kick{display:block;font-family:var(--sans);font-weight:900;font-size:19px;color:var(--ink);letter-spacing:-.01em;line-height:1}
   .ctl-line{display:block;font-family:var(--serif);font-size:13.5px;color:var(--muted);line-height:1.4;margin-top:4px}
-  .demo-btn{position:fixed;right:18px;bottom:18px;z-index:50;font-family:var(--sans);font-weight:700;
+  /* .demo-btn{position:fixed;right:18px;bottom:18px;z-index:50;font-family:var(--sans);font-weight:700;
     font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--paper);background:var(--ink);
     border:none;padding:11px 17px;border-radius:999px;cursor:pointer;box-shadow:0 5px 20px rgba(0,0,0,.28);
     transition:background .15s,transform .15s}
   .demo-btn:hover{transform:translateY(-1px)}
-  .demo-btn.running{background:var(--rule)}
+  .demo-btn.running{background:var(--rule)} */
   .ctlrow{margin-bottom:12px}
   .ctlhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
   .ctllabel{font-weight:700;font-size:13px}
@@ -110,12 +127,6 @@
   input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--grey-soft)}
   input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--rule)}
   input[type=range]::-moz-range-thumb{width:16px;height:16px;border:2px solid var(--paper);border-radius:50%;background:var(--rule)}
-  .archetypes{display:flex;gap:7px;margin-top:6px}
-  .arch{flex:1;font-family:var(--sans);font-weight:700;font-size:11.5px;cursor:pointer;
-    border:1.4px solid var(--ink);background:#fff;color:var(--ink);
-    padding:7px 5px;border-radius:2px;transition:.12s}
-  .arch:hover{background:var(--ink);color:var(--paper)}
-  .arch[data-on="1"]{background:var(--ink);color:var(--paper)}
 
   /* dich beta readout */
   .betaread .reveal-in{border-top:2px solid var(--ink);padding-top:8px}
@@ -170,18 +181,28 @@
     .scrolly{grid-template-columns:1fr;gap:0}
     .graphic{position:-webkit-sticky;position:sticky;top:0;height:auto;background:var(--paper);z-index:5;
       padding:10px 0 12px;border-bottom:1px solid var(--grey-soft)}
+    #scatterC,#scatterD{max-height:40vh}
+    #helixP{max-height:34vh}
     .step{min-height:calc(100vh + 220px)}   /* viewport + card → only one card on screen at a time */
     .card{box-shadow:0 2px 22px rgba(0,0,0,.12)}
     .scrolly .step[data-step="4"] .card{display:none}
-    /* reserve a stable height (= the tallest state, measured at mobile width) so toggling effect
-       (no-effect vs pathogenic/protective) doesn't resize the sticky graphic and shift the page */
-    .betaread .reveal-in{min-height:112px}
+    /* mobile: the graphic is top-aligned (height:auto), so panels can grow/collapse BELOW the
+       fixed canvas without ever moving it. Collapse them via grid-rows (rather than reserving)
+       so there's no empty gap under the chart during the narrative. The canvas size is constant
+       (no sandbox shrink any more), so there is still no plot jump. Opacity comes from the base
+       rule; these only add the height collapse. */
+    .result,.controls,.betaread{display:grid;grid-template-rows:0fr;
+      transition:grid-template-rows .45s ease,opacity .45s ease}
+    .result.show,.betaread.show,.controls.live{grid-template-rows:1fr}
+    /* reserve the tallest expanded betaread state (the significant-effect text wraps to more lines
+       at narrow width) so toggling significance doesn't reflow the controls below it */
+    .betaread .reveal-in{min-height:132px}
   }
 </style>
 </head>
 <body>
 
-<button id="demoBtn" class="demo-btn" aria-label="Play guided demo">▶ Demo</button>
+<!-- <button id="demoBtn" class="demo-btn" aria-label="Play guided demo">▶ Demo</button> -->
 
 <div id="page">
 <div class="intro">
@@ -189,6 +210,7 @@
     <div class="kicker">Interactive · The misalignment model</div>
     <h1>Why do some individuals defy their polygenic score?</h1>
     <p class="standfirst">A polygenic score sums thousands of common variants to <em>predict</em> a trait. A burden of rare, damaging variants in a single gene — counted together — can <em>override</em> that prediction, pulling a person away from what their common DNA forecast. Scroll to see how.</p>
+    <p class="byline">By <b>Nikolas Baya</b></p>
     <div class="scrollcue">Scroll
       <svg class="scrollarrow" width="14" height="40" viewBox="0 0 14 40" fill="none" aria-hidden="true">
         <line x1="7" y1="2" x2="7" y2="30" stroke="currentColor" stroke-width="1.6"/>
@@ -250,16 +272,11 @@
       <div class="ctl-intro"><span class="ctl-kick">Your turn</span><span class="ctl-line">Drag to set the gene's burden effect and how often it is observed.</span></div>
       <div class="ctlrow">
         <div class="ctlhead"><span class="ctllabel">Rare-variant burden effect</span><span class="ctlval" id="betavalC">+0.0 SD</span></div>
-        <input id="betaC" type="range" min="-4" max="4" step="0.1" value="0">
+        <input id="betaC" type="range" min="-2.5" max="2.5" step="0.1" value="0">
       </div>
       <div class="ctlrow">
         <div class="ctlhead"><span class="ctllabel">Burden frequency</span><span class="ctlval" id="freqvalC">0.50%</span></div>
         <input id="freqC" type="range" min="0.05" max="2" step="0.05" value="0.5">
-      </div>
-      <div class="archetypes" role="group">
-        <button class="arch" data-beta="0"    id="a0C">No effect</button>
-        <button class="arch" data-beta="1.6"  id="a1C">Pathogenic</button>
-        <button class="arch" data-beta="-1.6" id="a2C">Protective</button>
       </div>
      </div>
     </div>
@@ -311,11 +328,6 @@
         <div class="ctlhead"><span class="ctllabel">Disease prevalence</span><span class="ctlval" id="prevvalD">6%</span></div>
         <input id="prevD" type="range" min="2" max="20" step="1" value="6">
       </div>
-      <div class="archetypes" role="group">
-        <button class="arch" data-eff="0"    id="a0D">No effect</button>
-        <button class="arch" data-eff="2.2"  id="a1D">Pathogenic</button>
-        <button class="arch" data-eff="-2.2" id="a2D">Protective</button>
-      </div>
      </div>
     </div>
   </div>
@@ -330,7 +342,7 @@
 </section>
 
 <div class="outro"><div class="bar">
-  <p>The gap between prediction and reality is where rare, large-effect, rare-disorder variants can hide. Find those people — and you have a way to find genes associated to rare disorders.</p>
+  <p>When someone's biology defies their polygenic score, the mismatch may be signal, not noise — rare, large-effect variants are often hiding in the gap. Find the people who deviate, and you have a route to the genes behind rare disorders.</p>
   <div class="outro-aside">
     <div class="links">
       <a href="https://www.cell.com/ajhg/fulltext/S0002-9297(26)00200-4" target="_blank" rel="noopener">Read the paper</a>
@@ -351,8 +363,10 @@ const C={ink:'#16140f',grey:'#b8b4aa',gsoft:'#e6e3da',high:'#c6362f',low:'#2f6f9
 let zoomFactor=window.innerWidth>820?1.3:1;
 const ZOOM=()=>zoomFactor;                     // current #page zoom; rects/sizes set as CSS px get re-scaled, so divide
 function applyZoom(){const desktop=window.innerWidth>820;
-  // full 1.3 when the window can fit the zoomed 1080px layout, scaled down on narrower desktops to avoid overflow
-  zoomFactor=desktop?Math.min(1.3,window.innerWidth/1100):1;
+  // full 1.3 when the window can fit the zoomed 1080px layout, scaled down on narrower desktops to avoid
+  // horizontal overflow (innerWidth) AND on shorter windows so the fully-expanded plot stack
+  // (canvas + result/betaread + controls) never overflows the centred 100vh sticky graphic and clips at the bottom
+  zoomFactor=desktop?Math.min(1.3,window.innerWidth/1100,window.innerHeight/850):1;
   document.documentElement.style.setProperty('--z',zoomFactor);}
 applyZoom();
 // fixed seed → identical population every reload (mulberry32)
@@ -363,11 +377,16 @@ function gauss(){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 const pgs=new Float32Array(N),resid=new Float32Array(N),env=new Float32Array(N),vu=new Float32Array(N);
 for(let i=0;i<N;i++){pgs[i]=gauss();resid[i]=gauss();env[i]=gauss();vu[i]=rng();}
-function fitCanvas(cv,ctx,ratio,frac){
+// canvas size is derived purely in one coordinate space (layout px): width from the parent's
+// clientWidth, height capped by the CSS max-height (read via getComputedStyle). No window.innerHeight
+// and no /ZOOM() division — so nothing depends on how the engine reports zoomed geometry, and the
+// height budget is a single per-breakpoint knob in CSS. Size is independent of the scroll step.
+function fitCanvas(cv,ctx,ratio){
   const parent=cv.parentElement;
   let cssW=Math.max(((parent&&parent.clientWidth)||cv.clientWidth)||320,200);
   let cssH=cssW/ratio;
-  const maxH=window.innerHeight*(frac||(window.innerWidth<=820?0.40:0.46))/ZOOM();
+  const mh=parseFloat(getComputedStyle(cv).maxHeight);   // resolved CSS px (same space as clientWidth)
+  const maxH=isFinite(mh)?mh:Infinity;
   if(cssH>maxH){cssH=maxH;cssW=cssH*ratio;}
   const dpr=Math.min(window.devicePixelRatio||1,2);
   cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
@@ -409,7 +428,7 @@ const Cont=(function(){
   const PAD={l:46,r:16,t:14,b:38},XR=3.4,YR=4.6;
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
-  function resize(){const d=fitCanvas(cv,ctx,640/440,(sb&&window.innerWidth<=820)?0.30:0);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
+  function resize(){const d=fitCanvas(cv,ctx,640/440);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
   let beta=0,freq=0,showTails=false,showResult=false,sb=false,pulse=null,bloomStart=0,dispBeta=0,flowRAF=null,colorStage=0;
   const bloomAmt=new Float32Array(N);   // sandbox: per-dot carrier-ness, eased for the live frequency bloom
   const reduceMotion=matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -548,14 +567,12 @@ const Cont=(function(){
     document.getElementById('freqvalC').textContent=(+fE.value).toFixed(2)+'%';setFill(bE);setFill(fE);}
   let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;beta=+bE.value;freq=+fE.value/100;
     if(sb)startFlow();else compute();});};
-  function setArch(id){['a0C','a1C','a2C'].forEach(x=>document.getElementById(x).setAttribute('data-on',x===id?'1':'0'));}
-  bE.addEventListener('input',()=>{labels();setArch(null);go();});
+  bE.addEventListener('input',()=>{labels();go();});
   fE.addEventListener('input',()=>{labels();go();});
-  document.querySelectorAll('#a0C,#a1C,#a2C').forEach(btn=>btn.addEventListener('click',()=>{bE.value=btn.dataset.beta;setArch(btn.id);labels();go();}));
   function set(o){if('beta'in o){bE.value=o.beta;}if('freq'in o){fE.value=o.freq;}beta=+bE.value;
     freq=('freq'in o)?o.freq/100:+fE.value/100;          // honor exact 0 (slider min is 0.05, so it would clamp)
     if('showTails'in o)showTails=o.showTails;if('showResult'in o)showResult=o.showResult;labels();compute();}
-  function step(i){const live=document.getElementById('ctlC'),was=sb;sb=(i===4);
+  function step(i){const live=document.getElementById('ctlC');sb=(i===4);
     colorStage=i===0?0:i===1?1:2;   // 0 neutral · 1 aligned highlighted · 2 misaligned tails coloured
     document.getElementById('secC').classList.toggle('sandbox',sb);
     if(!sb&&flowRAF){cancelAnimationFrame(flowRAF);flowRAF=null;}
@@ -566,8 +583,7 @@ const Cont=(function(){
     else if(i===3)set({beta:1.6,freq:0.6,showTails:true,showResult:true});
     else if(i===4){live.classList.add('live');showTails=true;showResult=true;
       dispBeta=beta;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
-    setPulse(i===1?'aligned':i===2?'misaligned':i===3?'bloom':null);
-    if(sb!==was)resize();}
+    setPulse(i===1?'aligned':i===2?'misaligned':i===3?'bloom':null);}
   labels();resize();return{step,resize,render:compute};
 })();
 
@@ -577,7 +593,7 @@ const Dich=(function(){
   const PAD={l:46,r:16,t:14,b:38},XR=3.4,YR=4.6;
   let W=640,H=440,pW=W-PAD.l-PAD.r,pH=H-PAD.t-PAD.b;
   const sx=v=>PAD.l+(v+XR)/(2*XR)*pW,sy=v=>PAD.t+(YR-v)/(2*YR)*pH;
-  function resize(){const d=fitCanvas(cv,ctx,640/440,(sb&&window.innerWidth<=820)?0.30:0);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
+  function resize(){const d=fitCanvas(cv,ctx,640/440);W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
   const cP=0.7,cE=0.9,baseLiab=new Float32Array(N);
   for(let i=0;i<N;i++)baseLiab[i]=cP*pgs[i]+cE*env[i];
   const sortedBase=Float32Array.from(baseLiab).sort();
@@ -681,15 +697,13 @@ const Dich=(function(){
     document.getElementById('prevvalD').textContent=(+pE.value)+'%';setFill(eE);setFill(fE);setFill(pE);}
   let raf=null;const go=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=null;eff=+eE.value;freq=+fE.value/100;prev=+pE.value/100;
     if(sb)startFlow();else compute();});};
-  function setArch(id){['a0D','a1D','a2D'].forEach(x=>document.getElementById(x).setAttribute('data-on',x===id?'1':'0'));}
-  eE.addEventListener('input',()=>{labels();setArch(null);go();});
+  eE.addEventListener('input',()=>{labels();go();});
   fE.addEventListener('input',()=>{labels();go();});
   pE.addEventListener('input',()=>{labels();go();});
-  document.querySelectorAll('#a0D,#a1D,#a2D').forEach(btn=>btn.addEventListener('click',()=>{eE.value=btn.dataset.eff;setArch(btn.id);labels();go();}));
   function set(o){if('eff'in o)eE.value=o.eff;if('freq'in o)fE.value=o.freq;if('prev'in o)pE.value=o.prev;
     eff=+eE.value;freq=('freq'in o)?o.freq/100:+fE.value/100;prev=+pE.value/100;  // honor exact 0 (slider min 0.05)
     if('showResult'in o)showResult=o.showResult;if('showLabels'in o)showLabels=o.showLabels;labels();compute();}
-  function step(i){const live=document.getElementById('ctlD'),was=sb;sb=(i===4);
+  function step(i){const live=document.getElementById('ctlD');sb=(i===4);
     document.getElementById('secD').classList.toggle('sandbox',sb);
     if(!sb&&flowRAF){cancelAnimationFrame(flowRAF);flowRAF=null;}
     showRisk=(i===0);                                  // 'Low risk ↔ High risk' only on the Liability step
@@ -700,7 +714,7 @@ const Dich=(function(){
     else if(i===3)set({eff:-2.2,freq:0.6,showLabels:true,showResult:true});
     else if(i===4){live.classList.add('live');showLabels=true;showResult=true;
       dispEff=eff;for(let k=0;k<N;k++)bloomAmt[k]=(freq>0&&vu[k]<freq)?1:0;compute();}  // start matched to step 3's end
-    if(sb!==was)resize();}
+    }
   labels();resize();return{step,resize,render:compute};
 })();
 
@@ -716,7 +730,7 @@ const Primer=(function(){
   const EFF=[1.0,-0.6,1.4,0.5,-1.0,0.8,-0.4,1.2,0.7,-0.5,1.1],NV=EFF.length;
   const STAG=120,RISE=520,MERGE=900;                          // stage-1 stagger/grow, stage-2 merge
   let stage=0,tStart=0,raf=null,shown=-1;
-  function resize(){const d=fitCanvas(cv,ctx,640/380,window.innerWidth<=820?0.34:0);
+  function resize(){const d=fitCanvas(cv,ctx,640/380);
     W=d.W;H=d.H;pW=W-PAD.l-PAD.r;pH=H-PAD.t-PAD.b;compute();}
   function vArrow(x,baseY,len,rgb,a,lw,hl){                   // signed len: +up / -down; paper halo then colour
     if(a<=0.02||Math.abs(len)<1)return;
@@ -776,18 +790,20 @@ const sims=[Primer,Cont,Dich];
 // desktop: centre every card on the canvas via top-padding, and make each step tall enough that
 // the next card stays off-screen while its own card sits beside the plot — and so the sticky plot
 // stays pinned through the final (sandbox) step instead of releasing at the bottom of the column
-function alignCards(){const desktop=window.innerWidth>820;
+function alignCards(){const desktop=window.innerWidth>820,z=ZOOM();
   [['secP','stepsP'],['secC','stepsC'],['secD','stepsD']].forEach(([sec,steps])=>{
     const g=document.querySelector('#'+sec+' .graphic'),c=g&&g.querySelector('canvas');
-    const gr=g&&g.getBoundingClientRect(),cr=c&&c.getBoundingClientRect();
     document.querySelectorAll('#'+steps+' .step').forEach(step=>{
       const card=step.querySelector('.card');
       if(!desktop||!g||!c||!card){step.style.minHeight='';step.style.paddingTop='';step.style.alignItems='';return;}
-      const z=ZOOM(),ch=card.getBoundingClientRect().height,off=(cr.top-gr.top)+cr.height/2,pad=Math.max(off-ch/2,0);
-      // rects are visual px (incl. zoom); these styles live inside #page and get re-zoomed, so divide
-      step.style.alignItems='flex-start';step.style.paddingTop=(pad/z)+'px';
-      // step ≈ viewport + card, so the gap between one card and the next is a full viewport → only one card on screen at a time
-      step.style.minHeight=(Math.max(pad+ch+40,window.innerHeight+ch+40)/z)+'px';});});}
+      // measure in layout px (offset*) — the same space these paddings live in inside #page — so
+      // nothing depends on how the engine reports zoomed rects. The canvas is a direct child of the
+      // sticky .graphic, so canvas.offsetTop is its position within it; centre the card on it.
+      const ch=card.offsetHeight,off=c.offsetTop+c.offsetHeight/2,pad=Math.max(off-ch/2,0);
+      step.style.alignItems='flex-start';step.style.paddingTop=pad+'px';
+      // step ≈ one viewport + card → only one card on screen at a time. innerHeight is the visual
+      // viewport (unzoomed); /z converts it into the layout px these styles are set in.
+      step.style.minHeight=Math.max(pad+ch+40,window.innerHeight/z+ch+40)+'px';});});}
 function resizeAll(){applyZoom();sims.forEach(s=>s.resize());alignCards();}
 window.addEventListener('resize',resizeAll);
 window.addEventListener('orientationchange',()=>setTimeout(resizeAll,200));
@@ -796,11 +812,24 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(resizeAll);
 ['helixP','scatterC','scatterD'].forEach((id,k)=>{const el=document.getElementById(id);
   new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)sims[k].render();}),{threshold:0.04}).observe(el);});
 // Safari: redraw after layout/compositing settles
-requestAnimationFrame(()=>requestAnimationFrame(resizeAll));
+// reveal the page only after the settling resizeAll, so the first visible frame is already laid out
+function reveal(){const p=document.getElementById('page');if(p)p.classList.add('ready');}
+requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeAll();reveal();}));
+window.addEventListener('load',reveal);
+setTimeout(reveal,800);   // hard fallback: a slow font/layout must never leave the page hidden
 setTimeout(resizeAll,300);
 window.addEventListener('pageshow',resizeAll);
+// ResizeObserver: catch container width changes the window 'resize' event misses (browser zoom,
+// scrollbar appearing, mobile URL-bar reflow). Guard on width — resizing a canvas only changes its
+// height, so keying off width prevents the observer from feeding back into an infinite loop.
+if(window.ResizeObserver){const lastW=new WeakMap();
+  const ro=new ResizeObserver(es=>{let changed=false;
+    es.forEach(e=>{const w=Math.round(e.contentRect.width);if(lastW.get(e.target)!==w){lastW.set(e.target,w);changed=true;}});
+    if(changed)resizeAll();});
+  ['secP','secC','secD'].forEach(id=>{const g=document.querySelector('#'+id+' .graphic');if(g)ro.observe(g);});}
 
-/* ---------------- guided auto-demo ---------------- */
+// ---------------- guided auto-demo (DISABLED — commented out per request) ----------------
+/*
 let demoRunning=false,stopFlag=false,demoIdx=0,demoGen=0;
 const demoBtn=document.getElementById('demoBtn');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -872,6 +901,7 @@ async function runDemo(){
   demoIdx=0;endDemo();
 }
 if(demoBtn)demoBtn.addEventListener('click',()=>{demoRunning?endDemo():runDemo();});
+*/
 })();
 </script>
   <script data-goatcounter="https://n-i-k.goatcounter.com/count"
